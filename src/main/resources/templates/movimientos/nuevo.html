@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Nuevo movimiento')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Nuevo movimiento')}"></header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Registrar movimiento</h1>
+                    <p class="page-subtitle">Anota un gasto o ingreso en segundos sin distracciones</p>
+                </div>
+                <div class="page-actions">
+                    <a th:href="@{/movimientos}" class="btn btn-ghost btn-sm">Ver historial completo →</a>
+                </div>
+            </div>
+
+            <div th:if="${mensajeExito}" class="alert alert-success" role="status" th:text="${mensajeExito}"></div>
+
+            <section class="card section-card form-page-card composer-card" aria-labelledby="titulo-nuevo-mov">
+                <div class="composer-header">
+                    <h2 id="titulo-nuevo-mov" class="sr-only">Formulario de nuevo movimiento</h2>
+                    <div class="tipo-toggle tipo-toggle-lg" role="group" aria-label="Tipo de movimiento">
+                        <button type="button" class="tipo-btn js-tipo-btn" data-tipo="GASTO">Gasto</button>
+                        <button type="button" class="tipo-btn js-tipo-btn" data-tipo="INGRESO">Ingreso</button>
+                    </div>
+                </div>
+
+                <form th:action="@{/movimientos}" th:object="${movimientoForm}" method="post" class="quick-form" novalidate>
+                    <input type="hidden" id="tipo" th:field="*{tipo}">
+
+                    <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-error" role="alert">
+                        <p th:each="err : ${#fields.globalErrors()}" th:text="${err}"></p>
+                    </div>
+
+                    <div class="hero-amount-field">
+                        <label for="monto">Monto en pesos mexicanos (MXN)</label>
+                        <div class="amount-input-wrap amount-input-hero">
+                            <span class="amount-prefix">$</span>
+                            <input id="monto"
+                                   type="number"
+                                   step="0.01"
+                                   min="0.01"
+                                   placeholder="0.00"
+                                   th:field="*{monto}"
+                                   autofocus
+                                   required>
+                            <span class="amount-currency">MXN</span>
+                        </div>
+                        <span class="field-error" th:if="${#fields.hasErrors('monto')}" th:errors="*{monto}"></span>
+                    </div>
+
+                    <div class="recent-categories recent-categories-centered" th:if="${!#lists.isEmpty(categoriasRecientes)}">
+                        <span class="recent-label">Elige rápido una categoría frecuente:</span>
+                        <div class="chips">
+                            <button type="button"
+                                    class="chip chip-lg"
+                                    th:each="cat : ${categoriasRecientes}"
+                                    th:attr="data-categoria-id=${cat.id}"
+                                    th:text="${cat.nombre}"></button>
+                        </div>
+                    </div>
+
+                    <div class="form-grid rules-table-wrap">
+                        <div class="field field-full">
+                            <label for="descripcion">Descripción</label>
+                            <input id="descripcion"
+                                   type="text"
+                                   maxlength="255"
+                                   placeholder="Ej. Café con amigas, súper semanal, pago quincena..."
+                                   th:field="*{descripcion}"
+                                   required>
+                            <span class="field-error" th:if="${#fields.hasErrors('descripcion')}" th:errors="*{descripcion}"></span>
+                        </div>
+
+                        <div class="field">
+                            <label for="categoriaId">Categoría</label>
+                            <select id="categoriaId" th:field="*{categoriaId}" required>
+                                <option value="">Selecciona una categoría</option>
+                                <option th:each="cat : ${categorias}"
+                                        th:value="${cat.id}"
+                                        th:text="${cat.nombre}"></option>
+                            </select>
+                            <span class="field-error" th:if="${#fields.hasErrors('categoriaId')}" th:errors="*{categoriaId}"></span>
+                        </div>
+
+                        <div class="field">
+                            <label for="cuentaId">Cuenta o tarjeta</label>
+                            <select id="cuentaId" th:field="*{cuentaId}" required>
+                                <option value="">Selecciona una cuenta</option>
+                                <option th:each="cta : ${cuentas}"
+                                        th:value="${cta.id}"
+                                        th:text="${cta.nombre + ' (' + cta.tipo.etiqueta + ')'}"></option>
+                            </select>
+                            <span class="field-error" th:if="${#fields.hasErrors('cuentaId')}" th:errors="*{cuentaId}"></span>
+                        </div>
+
+                        <div class="field">
+                            <label for="fecha">Fecha</label>
+                            <input id="fecha" type="date" th:field="*{fecha}" required>
+                            <span class="field-error" th:if="${#fields.hasErrors('fecha')}" th:errors="*{fecha}"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-actions form-actions-split">
+                        <button type="submit" class="btn btn-primary btn-lg">Guardar movimiento</button>
+                        <button type="submit" name="agregarOtro" value="true" class="btn btn-soft btn-lg">Guardar y agregar otro</button>
+                    </div>
+                </form>
+            </section>
+        </main>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+        <nav th:replace="~{fragments/layout :: bottomnav}"></nav>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('No encontrado')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('No encontrado')}"></header>
+
+        <main class="main-content">
+            <section class="card section-card empty-state">
+                <h1>Recurso no encontrado</h1>
+                <p th:text="${mensajeError != null ? mensajeError : 'El registro solicitado no existe.'}"></p>
+                <div class="form-actions form-actions-center">
+                    <a th:href="@{/}" class="btn btn-primary">Volver al inicio</a>
+                </div>
+            </section>
+        </main>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+    </div>
+</div>
+</body>
+</html>

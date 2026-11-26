@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Presupuestos')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Presupuestos')}"></header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title" th:text="${'Presupuestos · ' + resumen.etiquetaMes}">Presupuestos</h1>
+                    <p class="page-subtitle" th:text="${'Define topes mensuales por categoría y compara contra ' + resumen.etiquetaMesAnterior}"></p>
+                </div>
+                <div class="page-actions">
+                    <a class="btn btn-ghost btn-sm" th:href="@{/presupuestos(mes=${mesAnterior})}">← Anterior</a>
+                    <form th:action="@{/presupuestos}" method="get" class="month-picker-form">
+                        <label for="presupuesto-mes" class="sr-only">Mes</label>
+                        <input id="presupuesto-mes" type="month" name="mes" th:value="${mesSeleccionado}">
+                        <button type="submit" class="btn btn-ghost btn-sm">Ver</button>
+                    </form>
+                    <a class="btn btn-ghost btn-sm" th:href="@{/presupuestos(mes=${mesSiguiente})}">Siguiente →</a>
+                </div>
+            </div>
+
+            <div th:if="${mensajeExito}" class="alert alert-success" role="status" th:text="${mensajeExito}"></div>
+            <div th:if="${mensajeError}" class="alert alert-error" role="alert" th:text="${mensajeError}"></div>
+
+            <!-- KPIs globales -->
+            <section class="balance-grid" aria-label="Resumen global de presupuestos">
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Presupuesto mensual total</span>
+                        <span class="metric-icon metric-icon-blue" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value"
+                            th:text="${'$' + #numbers.formatDecimal(resumen.presupuestoTotal, 1, 'COMMA', 2, 'POINT') + ' MXN'}">$0.00 MXN</strong>
+                    <span class="metric-sub" th:if="${resumen.porcentajeAvanceGlobal != null}"
+                          th:text="${resumen.porcentajeAvanceGlobal + ' % consumido en categorías presupuestadas'}"></span>
+                    <span class="metric-sub" th:if="${resumen.porcentajeAvanceGlobal == null}">Asigna un tope en las tarjetas abajo</span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label" th:text="${'Gastado en ' + resumen.etiquetaMes}">Gastado del mes</span>
+                        <span class="metric-icon metric-icon-red" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+                                <polyline points="17 18 23 18 23 12"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-expense"
+                            th:text="${'$' + #numbers.formatDecimal(resumen.gastadoTotalMes, 1, 'COMMA', 2, 'POINT') + ' MXN'}">$0.00 MXN</strong>
+                    <div class="global-progress" th:if="${resumen.estadoGlobal.name() != 'SIN_PRESUPUESTO'}">
+                        <progress class="budget-progress"
+                                  th:classappend="${' progress-' + resumen.estadoGlobal.name().toLowerCase()}"
+                                  max="100"
+                                  th:value="${resumen.porcentajeBarraGlobal}"></progress>
+                        <span class="status-badge"
+                              th:classappend="${' status-' + resumen.estadoGlobal.name().toLowerCase()}"
+                              th:text="${resumen.estadoGlobal.etiqueta}">Normal</span>
+                    </div>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label" th:text="${'Vs. ' + resumen.etiquetaMesAnterior}">Vs. mes anterior</span>
+                        <span class="metric-icon metric-icon-amber" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 3v18h18M7 16l4-5 4 3 5-7"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value"
+                            th:classappend="${resumen.diferenciaTotal.signum() > 0} ? ' metric-expense' : ' metric-income'"
+                            th:text="${(resumen.diferenciaTotal.signum() > 0 ? '+' : '') + '$' + #numbers.formatDecimal(resumen.diferenciaTotal, 1, 'COMMA', 2, 'POINT') + ' MXN'}">$0.00 MXN</strong>
+                    <span class="metric-sub"
+                          th:text="${'Mes anterior: $' + #numbers.formatDecimal(resumen.gastadoTotalMesAnterior, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></span>
+                </article>
+            </section>
+
+            <!-- Tarjetas visuales de presupuesto por categoría -->
+            <section aria-labelledby="titulo-categorias-presupuesto">
+                <div class="section-header">
+                    <div>
+                        <h2 id="titulo-categorias-presupuesto">Categorías del mes</h2>
+                        <span class="section-hint">Haz clic en el nombre de una categoría para ver sus gastos del mes</span>
+                    </div>
+                    <div class="legend">
+                        <span class="status-badge status-normal">Normal (&lt; 80 %)</span>
+                        <span class="status-badge status-aviso">Aviso (80–99 %)</span>
+                        <span class="status-badge status-excedido">Excedido (&ge; 100 %)</span>
+                    </div>
+                </div>
+
+                <div class="budget-cards-grid">
+                    <article class="budget-item-card" th:each="item : ${resumen.categorias}">
+                        <div class="budget-card-head">
+                            <a class="cat-link"
+                               th:href="@{/movimientos(mes=${mesSeleccionado}, tipoPeriodo='MES', categoriaId=${item.categoriaId})}"
+                               th:text="${item.categoriaNombre}">Categoría</a>
+                            <span class="status-badge"
+                                  th:classappend="${' status-' + item.estado.name().toLowerCase()}"
+                                  th:text="${item.estado.etiqueta}">Estado</span>
+                        </div>
+
+                        <div class="budget-card-amounts">
+                            <strong class="budget-spent-big"
+                                    th:text="${'$' + #numbers.formatDecimal(item.gastadoMes, 1, 'COMMA', 2, 'POINT')}">$0.00</strong>
+                            <span class="section-hint" th:if="${item.presupuestoMensual != null}"
+                                  th:text="${'de $' + #numbers.formatDecimal(item.presupuestoMensual, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></span>
+                            <span class="section-hint" th:if="${item.presupuestoMensual == null}">Sin tope mensual</span>
+                        </div>
+
+                        <div th:if="${item.presupuestoMensual != null}">
+                            <div class="progress-meta">
+                                <strong th:text="${item.porcentajeAvance + ' %'}">0 %</strong>
+                                <span th:if="${item.disponible.signum() >= 0}"
+                                      class="text-muted"
+                                      th:text="${'Disponible: $' + #numbers.formatDecimal(item.disponible, 1, 'COMMA', 2, 'POINT')}"></span>
+                                <span th:if="${item.disponible.signum() < 0}"
+                                      class="text-expense"
+                                      th:text="${'Excedido por: $' + #numbers.formatDecimal(item.disponible.abs(), 1, 'COMMA', 2, 'POINT')}"></span>
+                            </div>
+                            <progress class="budget-progress"
+                                      th:classappend="${' progress-' + item.estado.name().toLowerCase()}"
+                                      max="100"
+                                      th:value="${item.porcentajeBarra}"></progress>
+                        </div>
+
+                        <div class="budget-card-compare">
+                            <span class="text-muted"
+                                  th:text="${'Mes anterior: $' + #numbers.formatDecimal(item.gastadoMesAnterior, 1, 'COMMA', 2, 'POINT')}"></span>
+                            <strong th:classappend="${item.diferenciaMesAnterior.signum() > 0} ? ' text-expense' : (${item.diferenciaMesAnterior.signum() < 0} ? ' text-income' : ' text-muted')"
+                                    th:text="${(item.diferenciaMesAnterior.signum() > 0 ? '↑ +$' : (item.diferenciaMesAnterior.signum() < 0 ? '↓ -$' : '$')) + #numbers.formatDecimal(item.diferenciaMesAnterior.abs(), 1, 'COMMA', 2, 'POINT') + (item.porcentajeCambioMesAnterior != null ? ' (' + (item.porcentajeCambioMesAnterior.signum() > 0 ? '+' : '') + item.porcentajeCambioMesAnterior + '%)' : '')}"></strong>
+                        </div>
+
+                        <div class="budget-card-footer">
+                            <form th:action="@{/presupuestos/categorias/{id}(id=${item.categoriaId})}"
+                                  method="post"
+                                  class="budget-inline-form">
+                                <input type="hidden" name="mes" th:value="${mesSeleccionado}">
+                                <input type="number"
+                                       name="presupuestoMensual"
+                                       step="0.01"
+                                       min="0.01"
+                                       placeholder="Definir tope MXN"
+                                       class="budget-input"
+                                       th:value="${item.presupuestoMensual}">
+                                <button type="submit" class="btn btn-ghost btn-sm">Guardar tope</button>
+                            </form>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <!-- Nueva categoría desplegable -->
+            <details class="collapsible-card" th:open="${#fields.hasErrors('categoriaForm.*')}">
+                <summary class="collapsible-summary">+ Crear nueva categoría</summary>
+                <div class="collapsible-body">
+                    <form th:action="@{/presupuestos/categorias}" th:object="${categoriaForm}" method="post" class="new-cat-form" novalidate>
+                        <input type="hidden" name="mes" th:value="${mesSeleccionado}">
+                        <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-error field-full" role="alert">
+                            <p th:each="err : ${#fields.globalErrors()}" th:text="${err}"></p>
+                        </div>
+
+                        <div class="field field-wide">
+                            <label for="cat-nombre">Nombre</label>
+                            <input id="cat-nombre" type="text" maxlength="100" placeholder="Ej. Mascotas, Gimnasio, Suscripciones..." th:field="*{nombre}" required>
+                            <span class="field-error" th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}"></span>
+                        </div>
+
+                        <div class="field">
+                            <label for="cat-presupuesto">Presupuesto mensual (MXN, opcional)</label>
+                            <input id="cat-presupuesto" type="number" step="0.01" min="0.01" placeholder="Opcional" th:field="*{presupuestoMensual}">
+                            <span class="field-error" th:if="${#fields.hasErrors('presupuestoMensual')}" th:errors="*{presupuestoMensual}"></span>
+                        </div>
+
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary">Crear categoría</button>
+                        </div>
+                    </form>
+                </div>
+            </details>
+        </main>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+        <nav th:replace="~{fragments/layout :: bottomnav}"></nav>
+    </div>
+</div>
+</body>
+</html>

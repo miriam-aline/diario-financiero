@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Importar CSV')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Importar CSV')}"></header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Importar movimientos del banco</h1>
+                    <p class="page-subtitle">Sube tu archivo CSV con vista previa y detección inteligente de duplicados</p>
+                </div>
+                <div class="page-actions">
+                    <a th:href="@{/importacion/ejemplo.csv}" class="btn btn-ghost btn-sm">Descargar CSV ejemplo</a>
+                    <a th:href="@{/importacion/revision}" class="btn btn-secondary btn-sm"
+                       th:text="${'Revisar sin categoría (' + pendientesCount + ')'}"></a>
+                </div>
+            </div>
+
+            <div class="steps-bar" aria-label="Pasos de importación">
+                <div class="step-item active"><span class="step-num">1</span><span>Sube tu archivo CSV</span></div>
+                <div class="step-item"><span class="step-num">2</span><span>Revisa la vista previa</span></div>
+                <div class="step-item"><span class="step-num">3</span><span>Clasifica «Sin categoría»</span></div>
+            </div>
+
+            <div th:if="${mensajeExito}" class="alert alert-success" role="status" th:text="${mensajeExito}"></div>
+            <div th:if="${mensajeError}" class="alert alert-error" role="alert" th:text="${mensajeError}"></div>
+
+            <section th:if="${pendientesCount > 0}" class="alert alert-warning" role="status">
+                <strong th:text="${'Tienes ' + pendientesCount + ' movimiento(s) en «Sin categoría» pendientes de revisar. '}"></strong>
+                <a th:href="@{/importacion/revision}" class="alert-link">Ir a revisión →</a>
+            </section>
+
+            <!-- Paso 1: Dropzone amigable + cuenta + formato avanzado colapsable -->
+            <section class="card section-card" aria-labelledby="titulo-importar">
+                <div class="section-header">
+                    <h2 id="titulo-importar">Paso 1 · Sube el CSV de tu periodo</h2>
+                    <span class="section-hint">Máximo 5 MB · No se guarda el archivo en disco</span>
+                </div>
+
+                <form th:action="@{/importacion/vista-previa}"
+                      th:object="${importacionForm}"
+                      method="post"
+                      enctype="multipart/form-data"
+                      class="quick-form">
+
+                    <div id="csv-dropzone" class="csv-dropzone">
+                        <input id="archivo-csv" type="file" name="archivo" accept=".csv,text/csv" required>
+                        <span class="dropzone-icon" aria-hidden="true">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                        </span>
+                        <span id="csv-file-name" class="dropzone-title">Arrastra aquí tu archivo .csv o haz clic para seleccionarlo</span>
+                        <span class="dropzone-sub">Soporta comas de miles, fechas dd/MM/yyyy y evita duplicar re-importaciones</span>
+                    </div>
+
+                    <div class="form-grid rules-table-wrap">
+                        <div class="field field-wide">
+                            <label for="imp-cuenta">Cuenta destino</label>
+                            <select id="imp-cuenta" th:field="*{cuentaId}" required>
+                                <option th:each="cta : ${cuentas}"
+                                        th:value="${cta.id}"
+                                        th:text="${cta.nombre + ' (' + cta.tipo.etiqueta + ')'}"></option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary">Generar vista previa →</button>
+                        </div>
+                    </div>
+
+                    <!-- Configuración avanzada colapsable para mantener limpia la pantalla -->
+                    <details class="edit-card-details rules-table-wrap"
+                             th:open="${mensajeError != null}">
+                        <summary>Personalizar columnas y formato de tu banco (actual: Fecha, Descripción, Cargo, Abono · dd/MM/yyyy)</summary>
+                        <div class="form-grid edit-card-form">
+                            <div class="field">
+                                <label for="imp-separador">Separador</label>
+                                <select id="imp-separador" th:field="*{separador}">
+                                    <option value=",">Coma (,)</option>
+                                    <option value=";">Punto y coma (;)</option>
+                                    <option value="\t">Tabulador</option>
+                                    <option value="|">Barra vertical (|)</option>
+                                </select>
+                            </div>
+
+                            <div class="field">
+                                <label for="imp-formato-fecha">Formato de fecha</label>
+                                <input id="imp-formato-fecha" type="text" th:field="*{formatoFecha}" placeholder="dd/MM/yyyy" required>
+                                <span class="metric-sub">Ej.: dd/MM/yyyy, yyyy-MM-dd</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="imp-col-fecha">Columna fecha (nombre o #)</label>
+                                <input id="imp-col-fecha" type="text" th:field="*{columnaFecha}" placeholder="Fecha" required>
+                            </div>
+
+                            <div class="field">
+                                <label for="imp-col-desc">Columna descripción (nombre o #)</label>
+                                <input id="imp-col-desc" type="text" th:field="*{columnaDescripcion}" placeholder="Descripción" required>
+                            </div>
+
+                            <div class="field">
+                                <label for="imp-col-cargo">Columna cargo (gasto)</label>
+                                <input id="imp-col-cargo" type="text" th:field="*{columnaCargo}" placeholder="Cargo">
+                            </div>
+
+                            <div class="field">
+                                <label for="imp-col-abono">Columna abono (ingreso)</label>
+                                <input id="imp-col-abono" type="text" th:field="*{columnaAbono}" placeholder="Abono">
+                                <span class="metric-sub">Si es una sola columna con +/-, repite el nombre en ambas</span>
+                            </div>
+                        </div>
+
+                        <label class="check-inline">
+                            <input type="checkbox" th:field="*{primeraFilaEsEncabezado}">
+                            <span>La primera fila del CSV contiene encabezados</span>
+                        </label>
+                    </details>
+                </form>
+            </section>
+
+            <!-- Reglas automáticas -->
+            <details class="collapsible-card" th:open="${!#lists.isEmpty(reglas)}">
+                <summary class="collapsible-summary">
+                    <span th:text="${'Reglas automáticas de categorización (' + #lists.size(reglas) + ')'}"></span>
+                </summary>
+                <div class="collapsible-body">
+                    <form th:action="@{/importacion/reglas}" method="post" class="new-cat-form">
+                        <div class="field field-wide">
+                            <label for="regla-texto">Cuando la descripción contenga</label>
+                            <input id="regla-texto" type="text" name="textoContiene" maxlength="120"
+                                   placeholder="Ej. supermercado, cafeteria, farmacia, nomina..." required>
+                        </div>
+                        <div class="field">
+                            <label for="regla-categoria">Asignar categoría</label>
+                            <select id="regla-categoria" name="categoriaId" required>
+                                <option value="">Selecciona categoría</option>
+                                <option th:each="cat : ${categorias}" th:value="${cat.id}" th:text="${cat.nombre}"></option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-secondary">Guardar regla</button>
+                        </div>
+                    </form>
+
+                    <div th:if="${#lists.isEmpty(reglas)}" class="empty-state">
+                        <p>Aún no has creado reglas automáticas.</p>
+                    </div>
+
+                    <div th:if="${!#lists.isEmpty(reglas)}" class="table-wrapper rules-table-wrap">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>Texto contenido</th>
+                                <th>Categoría asignada</th>
+                                <th class="col-actions">Acciones</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="regla : ${reglas}">
+                                <td><code th:text="${regla.textoContiene}"></code></td>
+                                <td><span class="tag" th:text="${regla.categoria.nombre}"></span></td>
+                                <td class="col-actions">
+                                    <form th:action="@{/importacion/reglas/{id}/eliminar(id=${regla.id})}" method="post" class="inline-form">
+                                        <button type="submit" class="btn-link btn-danger">Eliminar</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+        </main>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+        <nav th:replace="~{fragments/layout :: bottomnav}"></nav>
+    </div>
+</div>
+</body>
+</html>

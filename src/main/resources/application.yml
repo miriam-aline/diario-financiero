@@ -1,0 +1,54 @@
+server:
+  address: 127.0.0.1
+  port: ${SERVER_PORT:8080}
+  max-http-request-header-size: 64KB
+  error:
+    include-stacktrace: never
+    include-exception: false
+    include-message: never
+
+spring:
+  application:
+    name: diario-financiero
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+  datasource:
+    # Ruta configurable por variable de entorno DIARIO_DB_PATH (sin secretos en código)
+    url: jdbc:h2:file:${DIARIO_DB_PATH:./data/diario-financiero};AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: ${DIARIO_DB_USER:diario}
+    password: ${DIARIO_DB_PASSWORD:}
+
+  h2:
+    console:
+      enabled: false
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway gestiona el esquema; Hibernate solo valida que coincida
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: America/Mexico_City
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  thymeleaf:
+    cache: false
+    encoding: UTF-8
+
+  web:
+    locale: es_MX
+    locale-resolver: fixed
+
+diario:
+  respaldos:
+    directorio: ${DIARIO_BACKUPS_DIR:./backups}

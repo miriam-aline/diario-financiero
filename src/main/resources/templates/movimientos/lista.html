@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Movimientos')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Movimientos')}"></header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Movimientos</h1>
+                    <p class="page-subtitle">Consulta, filtra, edita o elimina todos tus ingresos y gastos</p>
+                </div>
+                <div class="page-actions">
+                    <a class="btn btn-ghost btn-sm"
+                       th:href="@{/exportar/movimientos.csv(desde=${filtro.desde}, hasta=${filtro.hasta}, categoriaId=${filtro.categoriaId}, texto=${filtro.texto})}">
+                        Exportar CSV
+                    </a>
+                    <a th:href="@{/movimientos/nuevo}" class="btn btn-primary btn-sm">+ Nuevo movimiento</a>
+                </div>
+            </div>
+
+            <div th:if="${mensajeExito}" class="alert alert-success" role="status" th:text="${mensajeExito}"></div>
+            <div th:if="${errorFiltro}" class="alert alert-error" role="alert" th:text="${errorFiltro}"></div>
+            <div th:if="${!#lists.isEmpty(alertasPagoTarjetas)}" class="alert alert-warning" role="alert">
+                <strong>Aviso de pago cercano:</strong>
+                <ul class="alert-list">
+                    <li th:each="alerta : ${alertasPagoTarjetas}">
+                        <a th:href="@{/tarjetas}" class="alert-link" th:text="${alerta.nombreTarjeta}">Tarjeta</a>
+                        <span th:text="${alerta.diasRestantes == 0 ? ' · vence HOY (' + #temporals.format(alerta.fechaPago, 'dd/MM/yyyy') + ')' : ' · vence en ' + alerta.diasRestantes + ' día(s) (' + #temporals.format(alerta.fechaPago, 'dd/MM/yyyy') + ')'}"></span>
+                        <span th:text="${' · Estimado: $' + #numbers.formatDecimal(alerta.estimadoAPagar, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Selector de periodo -->
+            <section class="card section-card period-card" aria-label="Selector de periodo">
+                <div class="period-top">
+                    <div class="period-heading">
+                        <h2 class="period-title"
+                            th:text="${periodoActivo != null ? periodoActivo.etiqueta() : 'Todos los movimientos'}"></h2>
+                        <span class="section-hint"
+                              th:if="${periodoActivo != null}"
+                              th:text="${'Del ' + #temporals.format(periodoActivo.desde, 'dd/MM/yyyy') + ' al ' + #temporals.format(periodoActivo.hasta, 'dd/MM/yyyy')}"></span>
+                    </div>
+
+                    <div class="period-nav" th:if="${periodoActivo != null}">
+                        <a class="btn btn-ghost btn-sm"
+                           th:href="@{/movimientos(mes=${periodoAnterior.mes}, tipoPeriodo=${periodoAnterior.tipo}, categoriaId=${filtro.categoriaId}, texto=${filtro.texto})}">
+                            ← Anterior
+                        </a>
+                        <a class="btn btn-ghost btn-sm"
+                           th:href="@{/movimientos(mes=${periodoSiguiente.mes}, tipoPeriodo=${periodoSiguiente.tipo}, categoriaId=${filtro.categoriaId}, texto=${filtro.texto})}">
+                            Siguiente →
+                        </a>
+                    </div>
+                </div>
+
+                <div class="period-controls">
+                    <div class="segmented" role="group" aria-label="Tipo de periodo">
+                        <a th:each="tp : ${tiposPeriodo}"
+                           class="segmented-btn"
+                           th:classappend="${periodoActivo != null and periodoActivo.tipo == tp} ? ' active' : ''"
+                           th:href="@{/movimientos(mes=${mesSeleccionado}, tipoPeriodo=${tp}, categoriaId=${filtro.categoriaId}, texto=${filtro.texto})}"
+                           th:text="${tp.etiqueta}"></a>
+                        <a class="segmented-btn"
+                           th:classappend="${usarFiltroManual} ? ' active' : ''"
+                           th:href="@{/movimientos(todos=true, categoriaId=${filtro.categoriaId}, texto=${filtro.texto})}">Todos</a>
+                    </div>
+
+                    <form th:action="@{/movimientos}" method="get" class="month-picker-form">
+                        <input type="hidden" name="tipoPeriodo"
+                               th:value="${periodoActivo != null ? periodoActivo.tipo : 'MES'}">
+                        <input type="hidden" name="categoriaId" th:if="${filtro.categoriaId != null}" th:value="${filtro.categoriaId}">
+                        <input type="hidden" name="texto" th:if="${filtro.texto != null}" th:value="${filtro.texto}">
+                        <label for="selector-mes" class="sr-only">Mes</label>
+                        <input id="selector-mes" type="month" name="mes" th:value="${mesSeleccionado}">
+                        <button type="submit" class="btn btn-ghost btn-sm">Ir</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Balance del periodo -->
+            <section class="balance-grid" aria-label="Balance del periodo">
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Ingresos</span>
+                        <span class="metric-icon metric-icon-green" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-income"
+                            th:text="${'$' + #numbers.formatDecimal(balance.totalIngresos, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></strong>
+                </article>
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Gastos</span>
+                        <span class="metric-icon metric-icon-red" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-expense"
+                            th:text="${'$' + #numbers.formatDecimal(balance.totalGastos, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></strong>
+                </article>
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Balance neto</span>
+                        <span class="metric-icon metric-icon-lilac" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value"
+                            th:classappend="${balance.balance.signum() >= 0} ? ' metric-income' : ' metric-expense'"
+                            th:text="${'$' + #numbers.formatDecimal(balance.balance, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></strong>
+                </article>
+            </section>
+
+            <!-- Filtros desplegables -->
+            <details class="collapsible-card"
+                     th:open="${filtro.categoriaId != null or filtro.texto != null or usarFiltroManual}">
+                <summary class="collapsible-summary">
+                    <span>Buscar o filtrar movimientos (fecha, categoría, texto)</span>
+                </summary>
+                <div class="collapsible-body">
+                    <form th:action="@{/movimientos}" method="get" class="filter-form">
+                        <div class="field">
+                            <label for="filtro-desde">Desde</label>
+                            <input id="filtro-desde" type="date" name="desde" th:value="${filtro.desde}">
+                        </div>
+                        <div class="field">
+                            <label for="filtro-hasta">Hasta</label>
+                            <input id="filtro-hasta" type="date" name="hasta" th:value="${filtro.hasta}">
+                        </div>
+                        <div class="field">
+                            <label for="filtro-categoria">Categoría</label>
+                            <select id="filtro-categoria" name="categoriaId">
+                                <option value="">Todas</option>
+                                <option th:each="cat : ${categorias}"
+                                        th:value="${cat.id}"
+                                        th:selected="${filtro.categoriaId != null and filtro.categoriaId == cat.id}"
+                                        th:text="${cat.nombre}"></option>
+                            </select>
+                        </div>
+                        <div class="field field-wide">
+                            <label for="filtro-texto">Buscar texto</label>
+                            <input id="filtro-texto"
+                                   type="search"
+                                   name="texto"
+                                   placeholder="Descripción..."
+                                   th:value="${filtro.texto}">
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-secondary">Aplicar filtros</button>
+                            <a th:href="@{/movimientos}" class="btn btn-ghost">Limpiar</a>
+                        </div>
+                    </form>
+                </div>
+            </details>
+
+            <!-- Tabla responsiva (en móvil se transforma en tarjetas limpias) -->
+            <section class="card section-card" aria-labelledby="titulo-lista">
+                <div class="section-header">
+                    <h2 id="titulo-lista">Historial completo</h2>
+                    <span class="section-hint" th:text="${#lists.size(movimientos) + ' registro(s)'}"></span>
+                </div>
+
+                <div th:if="${#lists.isEmpty(movimientos)}" class="empty-state">
+                    <p>Aún no hay movimientos en este periodo o con estos filtros.</p>
+                    <p class="empty-hint">Registra uno nuevo o cambia de quincena/mes arriba.</p>
+                    <div class="form-actions form-actions-center">
+                        <a th:href="@{/movimientos/nuevo}" class="btn btn-primary btn-sm">+ Registrar primer movimiento</a>
+                    </div>
+                </div>
+
+                <div th:if="${!#lists.isEmpty(movimientos)}" class="table-wrapper">
+                    <table class="data-table responsive-table">
+                        <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Categoría</th>
+                            <th>Cuenta</th>
+                            <th>Tipo</th>
+                            <th class="col-amount">Monto</th>
+                            <th class="col-actions">Acciones</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="mov : ${movimientos}">
+                            <td class="nowrap text-muted" data-label="Fecha" th:text="${#temporals.format(mov.fecha, 'dd/MM/yyyy')}"></td>
+                            <td class="mov-desc" data-label="Descripción" th:text="${mov.descripcion}"></td>
+                            <td data-label="Categoría"><span class="tag" th:text="${mov.categoria.nombre}"></span></td>
+                            <td data-label="Cuenta" th:text="${mov.cuenta.nombre}"></td>
+                            <td data-label="Tipo">
+                                <span class="pill"
+                                      th:classappend="${mov.tipo.name() == 'INGRESO'} ? ' pill-income' : ' pill-expense'"
+                                      th:text="${mov.tipo.etiqueta}"></span>
+                            </td>
+                            <td class="col-amount nowrap"
+                                data-label="Monto"
+                                th:classappend="${mov.tipo.name() == 'INGRESO'} ? ' text-income' : ' text-expense'"
+                                th:text="${(mov.tipo.name() == 'INGRESO' ? '+' : '-') + '$' + #numbers.formatDecimal(mov.monto, 1, 'COMMA', 2, 'POINT')}"></td>
+                            <td class="col-actions nowrap" data-label="Acciones">
+                                <a th:href="@{/movimientos/{id}/editar(id=${mov.id})}" class="btn-link">Editar</a>
+                                <form th:action="@{/movimientos/{id}/eliminar(id=${mov.id})}"
+                                      method="post"
+                                      class="inline-form"
+                                      th:attr="data-descripcion=${mov.descripcion}">
+                                    <button type="button" class="btn-link btn-danger js-delete-trigger">Borrar</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <dialog id="confirm-delete-dialog" class="confirm-dialog" aria-labelledby="dialog-title">
+            <h3 id="dialog-title">Eliminar movimiento</h3>
+            <p id="dialog-message">¿Seguro que deseas eliminar este movimiento?</p>
+            <div class="dialog-actions">
+                <button type="button" id="dialog-cancel" class="btn btn-ghost">Cancelar</button>
+                <button type="button" id="dialog-confirm" class="btn btn-danger-solid">Eliminar</button>
+            </div>
+        </dialog>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+        <nav th:replace="~{fragments/layout :: bottomnav}"></nav>
+    </div>
+</div>
+</body>
+</html>

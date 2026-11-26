@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Diario')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Diario')}"></header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Diario financiero</h1>
+                    <p class="page-subtitle"
+                       th:text="${'Semana del ' + #temporals.format(resumen.inicioSemana, 'dd/MM/yyyy') + ' al ' + #temporals.format(resumen.finSemana, 'dd/MM/yyyy')}"></p>
+                </div>
+                <div class="page-actions">
+                    <a class="btn btn-ghost btn-sm" th:href="@{/diario(semana=${semanaAnterior})}">← Semana anterior</a>
+                    <a class="btn btn-ghost btn-sm" th:href="@{/diario}">Esta semana</a>
+                    <a class="btn btn-ghost btn-sm" th:href="@{/diario(semana=${semanaSiguiente})}">Siguiente →</a>
+                </div>
+            </div>
+
+            <div th:if="${mensajeExito}" class="alert alert-success" role="status" th:text="${mensajeExito}"></div>
+
+            <!-- Resumen semanal con iconos -->
+            <section class="balance-grid weekly-grid" aria-label="Resumen semanal">
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Gastado en la semana</span>
+                        <span class="metric-icon metric-icon-red" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-expense"
+                            th:text="${'$' + #numbers.formatDecimal(resumen.totalGastado, 1, 'COMMA', 2, 'POINT')}"></strong>
+                    <span class="metric-sub"
+                          th:text="${'Ingresos: $' + #numbers.formatDecimal(resumen.totalIngresado, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Categoría más alta</span>
+                        <span class="metric-icon metric-icon-amber" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value"
+                            th:text="${resumen.categoriaMasAlta != null ? resumen.categoriaMasAlta : 'Sin gastos'}"></strong>
+                    <span class="metric-sub"
+                          th:if="${resumen.categoriaMasAlta != null}"
+                          th:text="${'$' + #numbers.formatDecimal(resumen.montoCategoriaMasAlta, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></span>
+                    <span class="metric-sub" th:if="${resumen.categoriaMasAlta == null}">Semana sin gastos</span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Días sin gasto</span>
+                        <span class="metric-icon metric-icon-green" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-income"
+                            th:text="${resumen.diasSinGasto + ' de ' + resumen.diasEvaluados + ' días'}"></strong>
+                    <span class="metric-sub">Sobre días transcurridos</span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Notas de la semana</span>
+                        <span class="metric-icon metric-icon-blue" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value" th:text="${#lists.size(resumen.notasSemana)}">0</strong>
+                    <span class="metric-sub">Reflexiones registradas</span>
+                </article>
+            </section>
+
+            <!-- Editor de entrada diaria con selector visual de ánimo -->
+            <section class="card section-card composer-card" id="editor-diario" aria-labelledby="titulo-editor-diario">
+                <div class="section-header">
+                    <div>
+                        <h2 id="titulo-editor-diario"
+                            th:text="${editandoExistente ? 'Editar reflexión del día' : 'Escribir en tu diario de hoy'}"></h2>
+                        <span class="section-hint">Conecta tus decisiones de dinero con cómo te sentiste</span>
+                    </div>
+                </div>
+
+                <form th:action="@{/diario}" th:object="${entradaForm}" method="post" class="quick-form" novalidate>
+                    <input type="hidden" name="semana" th:value="${semanaReferencia}">
+                    <input type="hidden" id="diario-animo" th:field="*{estadoDeAnimo}">
+
+                    <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-error" role="alert">
+                        <p th:each="err : ${#fields.globalErrors()}" th:text="${err}"></p>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="diario-fecha">Fecha</label>
+                            <input id="diario-fecha" type="date" th:field="*{fecha}" required>
+                            <span class="field-error" th:if="${#fields.hasErrors('fecha')}" th:errors="*{fecha}"></span>
+                        </div>
+
+                        <div class="field field-wide">
+                            <label>¿Cómo te sentiste con tus finanzas? (opcional)</label>
+                            <div class="mood-picker" role="group" aria-label="Estado de ánimo">
+                                <button type="button" class="mood-btn js-mood-btn" data-mood="1">😫 1 · Estresado</button>
+                                <button type="button" class="mood-btn js-mood-btn" data-mood="2">😟 2 · Inquieto</button>
+                                <button type="button" class="mood-btn js-mood-btn" data-mood="3">😐 3 · Neutral</button>
+                                <button type="button" class="mood-btn js-mood-btn" data-mood="4">🙂 4 · Tranquilo</button>
+                                <button type="button" class="mood-btn js-mood-btn" data-mood="5">😄 5 · Satisfecho</button>
+                            </div>
+                        </div>
+
+                        <div class="field field-full">
+                            <label for="diario-nota">Nota del día</label>
+                            <textarea id="diario-nota"
+                                      rows="3"
+                                      maxlength="4000"
+                                      placeholder="¿Qué decisión de dinero tomaste hoy? ¿Hubo algún impulso o un logro de ahorro?"
+                                      th:field="*{nota}"
+                                      required></textarea>
+                            <span class="field-error" th:if="${#fields.hasErrors('nota')}" th:errors="*{nota}"></span>
+                        </div>
+
+                        <div class="field field-full">
+                            <label for="diario-etiquetas">Etiquetas (opcional, separadas por coma)</label>
+                            <input id="diario-etiquetas"
+                                   type="text"
+                                   maxlength="500"
+                                   placeholder="Ej. ahorro, impulso, supermercado, meta"
+                                   th:field="*{etiquetas}">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary"
+                                th:text="${editandoExistente ? 'Actualizar nota' : 'Guardar nota'}"></button>
+                        <a th:if="${editandoExistente}" th:href="@{/diario(semana=${semanaReferencia})}" class="btn btn-ghost">Escribir para hoy</a>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Buscador colapsable -->
+            <details class="collapsible-card" th:open="${modoBusqueda}">
+                <summary class="collapsible-summary">Buscar entradas anteriores por texto o etiqueta</summary>
+                <div class="collapsible-body">
+                    <form th:action="@{/diario}" method="get" class="filter-form">
+                        <input type="hidden" name="semana" th:value="${semanaReferencia}">
+                        <div class="field field-wide">
+                            <label for="buscar-texto">Texto en nota o etiqueta</label>
+                            <input id="buscar-texto" type="search" name="texto" placeholder="Buscar palabra clave..." th:value="${textoBusqueda}">
+                        </div>
+                        <div class="field">
+                            <label for="buscar-etiqueta">Etiqueta exacta</label>
+                            <input id="buscar-etiqueta" type="text" name="etiqueta" placeholder="Ej. impulso" th:value="${etiquetaBusqueda}">
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-secondary">Buscar</button>
+                            <a th:if="${modoBusqueda}" th:href="@{/diario(semana=${semanaReferencia})}" class="btn btn-ghost">Limpiar</a>
+                        </div>
+                    </form>
+
+                    <div class="recent-categories" th:if="${!#lists.isEmpty(etiquetasDisponibles)}">
+                        <span class="recent-label">Tus etiquetas:</span>
+                        <div class="chips">
+                            <a class="chip chip-link"
+                               th:each="etq : ${etiquetasDisponibles}"
+                               th:classappend="${etiquetaBusqueda.equalsIgnoreCase(etq)} ? ' active' : ''"
+                               th:href="@{/diario(semana=${semanaReferencia}, etiqueta=${etq})}"
+                               th:text="${'#' + etq}"></a>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Resultados o Semana con tarjetas estilo calendario -->
+            <section th:if="${modoBusqueda}" class="card section-card" aria-labelledby="titulo-resultados">
+                <div class="section-header">
+                    <h2 id="titulo-resultados">Resultados de búsqueda</h2>
+                    <span class="section-hint" th:text="${#lists.size(resultadosBusqueda) + ' entrada(s)'}"></span>
+                </div>
+
+                <div th:if="${#lists.isEmpty(resultadosBusqueda)}" class="empty-state">
+                    <p>No se encontraron entradas que coincidan con tu búsqueda.</p>
+                </div>
+
+                <div class="timeline" th:if="${!#lists.isEmpty(resultadosBusqueda)}">
+                    <article class="day-card" th:each="dia : ${resultadosBusqueda}">
+                        <div class="day-card-layout">
+                            <div class="calendar-badge">
+                                <div class="calendar-badge-month" th:text="${#temporals.format(dia.fecha, 'MMM')}"></div>
+                                <div class="calendar-badge-day" th:text="${dia.fecha.dayOfMonth}"></div>
+                            </div>
+                            <div class="day-card-body">
+                                <div class="day-header">
+                                    <div>
+                                        <h3 class="day-title" th:text="${dia.etiquetaDia}"></h3>
+                                        <div class="day-totals">
+                                            <span class="text-income" th:if="${dia.totalIngresos.signum() > 0}"
+                                                  th:text="${'+$' + #numbers.formatDecimal(dia.totalIngresos, 1, 'COMMA', 2, 'POINT')}"></span>
+                                            <span class="text-expense" th:if="${dia.totalGastos.signum() > 0}"
+                                                  th:text="${'-$' + #numbers.formatDecimal(dia.totalGastos, 1, 'COMMA', 2, 'POINT')}"></span>
+                                        </div>
+                                    </div>
+                                    <div class="day-actions">
+                                        <a class="btn-link" th:href="@{/diario(semana=${dia.fecha}, fecha=${dia.fecha})}">Editar</a>
+                                        <form th:action="@{/diario/{id}/eliminar(id=${dia.entrada.id})}"
+                                              method="post" class="inline-form"
+                                              th:attr="data-descripcion=${'la entrada del ' + #temporals.format(dia.fecha, 'dd/MM/yyyy')}">
+                                            <input type="hidden" name="semana" th:value="${semanaReferencia}">
+                                            <button type="button" class="btn-link btn-danger js-delete-trigger">Borrar</button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <div class="note-box">
+                                    <div class="note-meta">
+                                        <span class="mood-badge" th:if="${dia.entrada.estadoDeAnimo != null}" th:text="${dia.entrada.etiquetaAnimo()}"></span>
+                                        <div class="chips" th:if="${!#lists.isEmpty(dia.entrada.listaEtiquetas())}">
+                                            <a class="tag tag-link" th:each="etq : ${dia.entrada.listaEtiquetas()}"
+                                               th:href="@{/diario(semana=${semanaReferencia}, etiqueta=${etq})}" th:text="${'#' + etq}"></a>
+                                        </div>
+                                    </div>
+                                    <p class="note-text" th:text="${dia.entrada.nota}"></p>
+                                </div>
+
+                                <ul class="day-movements" th:if="${!#lists.isEmpty(dia.movimientos)}">
+                                    <li class="day-movement-item" th:each="mov : ${dia.movimientos}">
+                                        <span class="mov-desc" th:text="${mov.descripcion}"></span>
+                                        <span class="tag" th:text="${mov.categoria.nombre}"></span>
+                                        <span class="mov-amount"
+                                              th:classappend="${mov.tipo.name() == 'INGRESO'} ? ' text-income' : ' text-expense'"
+                                              th:text="${(mov.tipo.name() == 'INGRESO' ? '+' : '-') + '$' + #numbers.formatDecimal(mov.monto, 1, 'COMMA', 2, 'POINT')}"></span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section th:if="${!modoBusqueda}" aria-labelledby="titulo-semana-dias">
+                <div class="section-header">
+                    <h2 id="titulo-semana-dias">Día a día de la semana</h2>
+                    <span class="section-hint" th:text="${#lists.size(resumen.dias) + ' día(s) con actividad'}"></span>
+                </div>
+
+                <div th:if="${#lists.isEmpty(resumen.dias)}" class="card section-card empty-state">
+                    <p>No hay movimientos ni notas registrados en esta semana.</p>
+                </div>
+
+                <div class="timeline" th:if="${!#lists.isEmpty(resumen.dias)}">
+                    <article class="day-card" th:each="dia : ${resumen.dias}">
+                        <div class="day-card-layout">
+                            <div class="calendar-badge">
+                                <div class="calendar-badge-month" th:text="${#temporals.format(dia.fecha, 'MMM')}"></div>
+                                <div class="calendar-badge-day" th:text="${dia.fecha.dayOfMonth}"></div>
+                            </div>
+                            <div class="day-card-body">
+                                <div class="day-header">
+                                    <div>
+                                        <h3 class="day-title" th:text="${dia.etiquetaDia}"></h3>
+                                        <div class="day-totals">
+                                            <span class="text-income" th:if="${dia.totalIngresos.signum() > 0}"
+                                                  th:text="${'Ingresos: +$' + #numbers.formatDecimal(dia.totalIngresos, 1, 'COMMA', 2, 'POINT')}"></span>
+                                            <span class="text-expense" th:if="${dia.totalGastos.signum() > 0}"
+                                                  th:text="${'Gastos: -$' + #numbers.formatDecimal(dia.totalGastos, 1, 'COMMA', 2, 'POINT')}"></span>
+                                            <span class="status-badge status-normal" th:if="${dia.totalGastos.signum() == 0}">Día sin gasto</span>
+                                        </div>
+                                    </div>
+                                    <div class="day-actions">
+                                        <a class="btn-link"
+                                           th:href="@{/diario(semana=${semanaReferencia}, fecha=${dia.fecha})}"
+                                           th:text="${dia.entrada != null ? 'Editar nota' : 'Escribir nota'}"></a>
+                                        <form th:if="${dia.entrada != null}"
+                                              th:action="@{/diario/{id}/eliminar(id=${dia.entrada.id})}"
+                                              method="post" class="inline-form"
+                                              th:attr="data-descripcion=${'la entrada del ' + #temporals.format(dia.fecha, 'dd/MM/yyyy')}">
+                                            <input type="hidden" name="semana" th:value="${semanaReferencia}">
+                                            <button type="button" class="btn-link btn-danger js-delete-trigger">Borrar</button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <div class="note-box" th:if="${dia.entrada != null}">
+                                    <div class="note-meta">
+                                        <span class="mood-badge" th:if="${dia.entrada.estadoDeAnimo != null}" th:text="${dia.entrada.etiquetaAnimo()}"></span>
+                                        <div class="chips" th:if="${!#lists.isEmpty(dia.entrada.listaEtiquetas())}">
+                                            <a class="tag tag-link" th:each="etq : ${dia.entrada.listaEtiquetas()}"
+                                               th:href="@{/diario(semana=${semanaReferencia}, etiqueta=${etq})}" th:text="${'#' + etq}"></a>
+                                        </div>
+                                    </div>
+                                    <p class="note-text" th:text="${dia.entrada.nota}"></p>
+                                </div>
+
+                                <p class="day-no-note" th:if="${dia.entrada == null}">Sin nota escrita para este día.</p>
+
+                                <ul class="day-movements" th:if="${!#lists.isEmpty(dia.movimientos)}">
+                                    <li class="day-movement-item" th:each="mov : ${dia.movimientos}">
+                                        <span class="mov-desc" th:text="${mov.descripcion}"></span>
+                                        <span class="tag" th:text="${mov.categoria.nombre}"></span>
+                                        <span class="text-muted mov-account" th:text="${mov.cuenta.nombre}"></span>
+                                        <span class="mov-amount"
+                                              th:classappend="${mov.tipo.name() == 'INGRESO'} ? ' text-income' : ' text-expense'"
+                                              th:text="${(mov.tipo.name() == 'INGRESO' ? '+' : '-') + '$' + #numbers.formatDecimal(mov.monto, 1, 'COMMA', 2, 'POINT')}"></span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </main>
+
+        <dialog id="confirm-delete-dialog" class="confirm-dialog" aria-labelledby="dialog-title">
+            <h3 id="dialog-title">Eliminar entrada</h3>
+            <p id="dialog-message">¿Seguro que deseas eliminar esta entrada?</p>
+            <div class="dialog-actions">
+                <button type="button" id="dialog-cancel" class="btn btn-ghost">Cancelar</button>
+                <button type="button" id="dialog-confirm" class="btn btn-danger-solid">Eliminar</button>
+            </div>
+        </dialog>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+        <nav th:replace="~{fragments/layout :: bottomnav}"></nav>
+    </div>
+</div>
+</body>
+</html>

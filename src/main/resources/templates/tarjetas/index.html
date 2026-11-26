@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Tarjetas')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Tarjetas')}"></header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Tarjetas de crédito</h1>
+                    <p class="page-subtitle">Sigue tus ciclos de facturación, estimado al próximo corte y alertas de fecha límite</p>
+                </div>
+            </div>
+
+            <div th:if="${mensajeExito}" class="alert alert-success" role="status" th:text="${mensajeExito}"></div>
+            <div th:if="${mensajeError}" class="alert alert-error" role="alert" th:text="${mensajeError}"></div>
+
+            <section th:if="${!#lists.isEmpty(alertasPago)}" class="alert alert-warning" role="alert">
+                <strong th:text="${'Pagos próximos (dentro de los próximos ' + diasAviso + ' días):'}"></strong>
+                <ul class="alert-list">
+                    <li th:each="alerta : ${alertasPago}">
+                        <strong th:text="${alerta.nombreTarjeta}"></strong>
+                        <span th:text="${alerta.diasRestantes == 0 ? ' · Fecha límite HOY (' + #temporals.format(alerta.fechaPago, 'dd/MM/yyyy') + ')' : ' · Faltan ' + alerta.diasRestantes + ' día(s) (pago el ' + #temporals.format(alerta.fechaPago, 'dd/MM/yyyy') + ')'}"></span>
+                        <span th:text="${' · Estimado: $' + #numbers.formatDecimal(alerta.estimadoAPagar, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></span>
+                    </li>
+                </ul>
+            </section>
+
+            <section class="balance-grid" aria-label="Resumen de tarjetas">
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Tarjetas registradas</span>
+                        <span class="metric-icon metric-icon-indigo" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value" th:text="${#lists.size(tarjetas)}">0</strong>
+                    <span class="metric-sub">Cuentas de crédito activas</span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Estimado total próximo corte</span>
+                        <span class="metric-icon metric-icon-red" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-expense"
+                            th:text="${'$' + #numbers.formatDecimal(totalProximoCorte, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></strong>
+                    <span class="metric-sub">Suma del ciclo abierto actual</span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Pagos cercanos</span>
+                        <span class="metric-icon metric-icon-amber" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value"
+                            th:classappend="${!#lists.isEmpty(alertasPago)} ? ' metric-expense' : ' metric-income'"
+                            th:text="${#lists.size(alertasPago) + ' aviso(s)'}"></strong>
+                    <span class="metric-sub" th:text="${'Aviso con ' + diasAviso + ' días de anticipación'}"></span>
+                </article>
+            </section>
+
+            <details class="collapsible-card"
+                     th:open="${#lists.isEmpty(tarjetas) or #fields.hasErrors('tarjetaForm.*')}">
+                <summary class="collapsible-summary">+ Agregar nueva tarjeta de crédito</summary>
+                <div class="collapsible-body">
+                    <form th:action="@{/tarjetas}" th:object="${tarjetaForm}" method="post" class="new-cat-form" novalidate>
+                        <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-error field-full" role="alert">
+                            <p th:each="err : ${#fields.globalErrors()}" th:text="${err}"></p>
+                        </div>
+
+                        <div class="field field-wide">
+                            <label for="tarjeta-nombre">Nombre de la tarjeta</label>
+                            <input id="tarjeta-nombre" type="text" maxlength="100" placeholder="Ej. Tarjeta Azul, Tarjeta Viajes..." th:field="*{nombre}" required>
+                            <span class="field-error" th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}"></span>
+                        </div>
+
+                        <div class="field">
+                            <label for="tarjeta-corte">Día de corte (1–31)</label>
+                            <input id="tarjeta-corte" type="number" min="1" max="31" placeholder="Ej. 15" th:field="*{diaCorte}" required>
+                            <span class="field-error" th:if="${#fields.hasErrors('diaCorte')}" th:errors="*{diaCorte}"></span>
+                        </div>
+
+                        <div class="field">
+                            <label for="tarjeta-pago">Día límite de pago (1–31)</label>
+                            <input id="tarjeta-pago" type="number" min="1" max="31" placeholder="Ej. 5" th:field="*{diaPago}" required>
+                            <span class="field-error" th:if="${#fields.hasErrors('diaPago')}" th:errors="*{diaPago}"></span>
+                        </div>
+
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary">Registrar tarjeta</button>
+                        </div>
+                    </form>
+                </div>
+            </details>
+
+            <!-- Paneles de tarjetas con diseño visual de tarjeta real -->
+            <section th:each="tarjeta : ${tarjetas}" class="card section-card credit-card-panel">
+                <div class="credit-cards-grid">
+                    <!-- Tarjeta visual con gradiente -->
+                    <div class="credit-card-visual">
+                        <div class="credit-card-top">
+                            <div>
+                                <div class="credit-card-name" th:text="${tarjeta.cuenta.nombre}"></div>
+                                <div class="credit-card-dates"
+                                     th:text="${'Corte día ' + tarjeta.cuenta.diaCorte + ' · Pago día ' + tarjeta.cuenta.diaPago}"></div>
+                            </div>
+                            <div class="card-chip" aria-hidden="true"></div>
+                        </div>
+
+                        <div>
+                            <div class="credit-card-balance-label">Estimado a pagar en próximo corte</div>
+                            <div class="credit-card-balance"
+                                 th:text="${'$' + #numbers.formatDecimal(tarjeta.cicloActual.estimadoAPagar, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></div>
+                        </div>
+
+                        <div class="credit-card-meta-row">
+                            <span th:text="${'Corta el ' + #temporals.format(tarjeta.cicloActual.ciclo.fechaCorte, 'dd/MM/yyyy') + ' (en ' + tarjeta.cicloActual.diasParaCorte + ' d)'}"></span>
+                            <span th:text="${'Pago: ' + #temporals.format(tarjeta.cicloActual.ciclo.fechaPago, 'dd/MM/yyyy')}"></span>
+                        </div>
+                    </div>
+
+                    <!-- Resumen de ciclo actual y cerrado -->
+                    <div class="cycle-grid">
+                        <article class="cycle-box">
+                            <span class="cycle-label">Ciclo actual</span>
+                            <strong th:text="${#temporals.format(tarjeta.cicloActual.ciclo.inicio, 'dd/MM') + ' al ' + #temporals.format(tarjeta.cicloActual.ciclo.fechaCorte, 'dd/MM/yyyy')}"></strong>
+                            <p class="cycle-meta"
+                               th:text="${'Cargos: $' + #numbers.formatDecimal(tarjeta.cicloActual.totalCargos, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></p>
+                            <p class="cycle-meta"
+                               th:text="${'Abonos: $' + #numbers.formatDecimal(tarjeta.cicloActual.totalAbonos, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></p>
+                            <span class="status-badge status-excedido"
+                                  th:if="${tarjeta.proximoPagoAlerta != null and tarjeta.proximoPagoAlerta.pagoHoy}">Pago HOY</span>
+                            <span class="status-badge status-aviso"
+                                  th:if="${tarjeta.proximoPagoAlerta != null and !tarjeta.proximoPagoAlerta.pagoHoy}"
+                                  th:text="${'Pago en ' + tarjeta.proximoPagoAlerta.diasParaPago + ' día(s)'}"></span>
+                            <span class="status-badge status-normal"
+                                  th:if="${tarjeta.proximoPagoAlerta == null}">Al corriente</span>
+                        </article>
+
+                        <article class="cycle-box" th:if="${tarjeta.cicloAnterior != null}">
+                            <span class="cycle-label">Último ciclo cerrado</span>
+                            <strong class="metric-value"
+                                    th:text="${'$' + #numbers.formatDecimal(tarjeta.cicloAnterior.estimadoAPagar, 1, 'COMMA', 2, 'POINT')}"></strong>
+                            <p class="cycle-meta"
+                               th:text="${#temporals.format(tarjeta.cicloAnterior.ciclo.inicio, 'dd/MM') + ' al ' + #temporals.format(tarjeta.cicloAnterior.ciclo.fechaCorte, 'dd/MM/yyyy')}"></p>
+                            <p class="cycle-meta"
+                               th:text="${'Límite pago: ' + #temporals.format(tarjeta.cicloAnterior.ciclo.fechaPago, 'dd/MM/yyyy')}"></p>
+                        </article>
+                    </div>
+                </div>
+
+                <details class="edit-card-details">
+                    <summary>Ver historial de ciclos y movimientos del ciclo actual</summary>
+                    <div class="subsection rules-table-wrap">
+                        <h3>Gasto por ciclo de facturación</h3>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                <tr>
+                                    <th>Ciclo</th>
+                                    <th>Corte</th>
+                                    <th>Pago</th>
+                                    <th class="col-amount">Cargos</th>
+                                    <th class="col-amount">Abonos</th>
+                                    <th class="col-amount">Estimado</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="cicloItem, iter : ${tarjeta.historialCiclos}">
+                                    <td class="nowrap">
+                                        <span th:text="${#temporals.format(cicloItem.ciclo.inicio, 'dd/MM/yyyy') + ' – ' + #temporals.format(cicloItem.ciclo.fechaCorte, 'dd/MM/yyyy')}"></span>
+                                        <span class="tag" th:if="${iter.first}">Actual</span>
+                                    </td>
+                                    <td class="nowrap" th:text="${#temporals.format(cicloItem.ciclo.fechaCorte, 'dd/MM/yyyy')}"></td>
+                                    <td class="nowrap" th:text="${#temporals.format(cicloItem.ciclo.fechaPago, 'dd/MM/yyyy')}"></td>
+                                    <td class="col-amount nowrap" th:text="${'$' + #numbers.formatDecimal(cicloItem.totalCargos, 1, 'COMMA', 2, 'POINT')}"></td>
+                                    <td class="col-amount nowrap text-income" th:text="${'$' + #numbers.formatDecimal(cicloItem.totalAbonos, 1, 'COMMA', 2, 'POINT')}"></td>
+                                    <td class="col-amount nowrap text-expense" th:text="${'$' + #numbers.formatDecimal(cicloItem.estimadoAPagar, 1, 'COMMA', 2, 'POINT')}"></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="subsection rules-table-wrap">
+                        <div class="section-header">
+                            <h3>Movimientos del ciclo actual</h3>
+                            <a th:href="@{/movimientos#captura-rapida}" class="btn-link">Registrar cargo →</a>
+                        </div>
+                        <p class="text-muted" th:if="${#lists.isEmpty(tarjeta.movimientosCicloActual)}">
+                            Sin cargos registrados en el ciclo actual.
+                        </p>
+                        <ul class="day-movements" th:if="${!#lists.isEmpty(tarjeta.movimientosCicloActual)}">
+                            <li class="day-movement-item" th:each="mov : ${tarjeta.movimientosCicloActual}">
+                                <span class="text-muted nowrap" th:text="${#temporals.format(mov.fecha, 'dd/MM/yyyy')}"></span>
+                                <span class="mov-desc" th:text="${mov.descripcion}"></span>
+                                <span class="tag" th:text="${mov.categoria.nombre}"></span>
+                                <span class="mov-amount"
+                                      th:classappend="${mov.tipo.name() == 'INGRESO'} ? ' text-income' : ' text-expense'"
+                                      th:text="${(mov.tipo.name() == 'INGRESO' ? '+' : '-') + '$' + #numbers.formatDecimal(mov.monto, 1, 'COMMA', 2, 'POINT')}"></span>
+                            </li>
+                        </ul>
+                    </div>
+                </details>
+
+                <details class="edit-card-details">
+                    <summary>Editar nombre o fechas de corte y pago</summary>
+                    <form th:action="@{/tarjetas/{id}/editar(id=${tarjeta.cuenta.id})}" method="post" class="new-cat-form edit-card-form">
+                        <div class="field field-wide">
+                            <label>Nombre</label>
+                            <input type="text" name="nombre" maxlength="100" th:value="${tarjeta.cuenta.nombre}" required>
+                        </div>
+                        <div class="field">
+                            <label>Día de corte</label>
+                            <input type="number" name="diaCorte" min="1" max="31" th:value="${tarjeta.cuenta.diaCorte}" required>
+                        </div>
+                        <div class="field">
+                            <label>Día de pago</label>
+                            <input type="number" name="diaPago" min="1" max="31" th:value="${tarjeta.cuenta.diaPago}" required>
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-secondary btn-sm">Guardar cambios</button>
+                        </div>
+                    </form>
+                </details>
+            </section>
+        </main>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+        <nav th:replace="~{fragments/layout :: bottomnav}"></nav>
+    </div>
+</div>
+</body>
+</html>

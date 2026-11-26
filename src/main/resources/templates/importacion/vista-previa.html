@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Vista previa de importación')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Vista previa CSV')}"></header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Vista previa de importación</h1>
+                    <p class="page-subtitle" th:text="${'Cuenta destino: ' + vista.nombreCuenta + ' · Revisa antes de confirmar'}"></p>
+                </div>
+                <div class="page-actions">
+                    <a th:href="@{/importacion}" class="btn btn-ghost btn-sm">← Cambiar archivo o formato</a>
+                </div>
+            </div>
+
+            <div class="steps-bar" aria-label="Pasos de importación">
+                <div class="step-item"><span class="step-num">1</span><span>Sube y configura el CSV</span></div>
+                <div class="step-item active"><span class="step-num">2</span><span>Revisa la vista previa</span></div>
+                <div class="step-item"><span class="step-num">3</span><span>Clasifica «Sin categoría»</span></div>
+            </div>
+
+            <section class="balance-grid weekly-grid">
+                <article class="card metric-card">
+                    <span class="metric-label">Nuevos a importar</span>
+                    <strong class="metric-value metric-income" th:text="${vista.totalNuevos}">0</strong>
+                </article>
+                <article class="card metric-card">
+                    <span class="metric-label">Duplicados omitidos</span>
+                    <strong class="metric-value text-muted" th:text="${vista.totalDuplicados}">0</strong>
+                </article>
+                <article class="card metric-card">
+                    <span class="metric-label">Quedarán sin categoría</span>
+                    <strong class="metric-value" th:text="${vista.totalSinCategoria}">0</strong>
+                </article>
+                <article class="card metric-card">
+                    <span class="metric-label">Filas vacías / totales</span>
+                    <strong class="metric-value text-muted" th:text="${vista.totalOmitidas}">0</strong>
+                </article>
+            </section>
+
+            <div class="form-actions">
+                <form th:if="${vista.totalNuevos > 0}" th:action="@{/importacion/confirmar}" method="post" class="inline-form">
+                    <input type="hidden" name="token" th:value="${vista.tokenConfirmacion}">
+                    <button type="submit" class="btn btn-primary"
+                            th:text="${'Confirmar e importar ' + vista.totalNuevos + ' movimiento(s)'}">Confirmar</button>
+                </form>
+                <a th:href="@{/importacion}" class="btn btn-ghost">Cancelar</a>
+            </div>
+
+            <details th:if="${!#lists.isEmpty(vista.avisosOmitidas)}" class="collapsible-card">
+                <summary class="collapsible-summary"
+                         th:text="${'Ver ' + #lists.size(vista.avisosOmitidas) + ' fila(s) omitida(s) automáticamente'}"></summary>
+                <div class="collapsible-body">
+                    <ul class="alert-list">
+                        <li th:each="aviso : ${vista.avisosOmitidas}" th:text="${aviso}"></li>
+                    </ul>
+                </div>
+            </details>
+
+            <section class="card section-card">
+                <div class="section-header">
+                    <h2>Detalle de movimientos detectados</h2>
+                    <span class="section-hint" th:text="${#lists.size(vista.filas) + ' fila(s) válidas'}">0</span>
+                </div>
+
+                <div th:if="${#lists.isEmpty(vista.filas)}" class="empty-state">
+                    <p>No se encontraron movimientos válidos en el archivo con la configuración indicada.</p>
+                </div>
+
+                <div th:if="${!#lists.isEmpty(vista.filas)}" class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>Línea</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Categoría sugerida</th>
+                            <th class="col-amount">Monto</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="fila : ${vista.filas}" th:classappend="${fila.duplicado} ? ' row-duplicate' : ''">
+                            <td class="text-muted" th:text="${fila.numeroLinea}">2</td>
+                            <td class="nowrap">
+                                <span class="status-badge status-normal" th:if="${!fila.duplicado}">Nuevo</span>
+                                <span class="status-badge status-sin_presupuesto" th:if="${fila.duplicado}">Duplicado</span>
+                            </td>
+                            <td class="nowrap" th:text="${#temporals.format(fila.fecha, 'dd/MM/yyyy')}"></td>
+                            <td th:text="${fila.descripcion}"></td>
+                            <td>
+                                <span class="tag" th:text="${fila.categoriaSugeridaNombre}"></span>
+                                <span class="metric-sub" th:if="${fila.reglaAplicada != null}"
+                                      th:text="${' (regla: ' + fila.reglaAplicada + ')'}"></span>
+                            </td>
+                            <td class="col-amount nowrap"
+                                th:classappend="${fila.tipo.name() == 'INGRESO'} ? ' text-income' : ' text-expense'"
+                                th:text="${(fila.tipo.name() == 'INGRESO' ? '+' : '-') + '$' + #numbers.formatDecimal(fila.monto, 1, 'COMMA', 2, 'POINT')}"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+    </div>
+</div>
+</body>
+</html>

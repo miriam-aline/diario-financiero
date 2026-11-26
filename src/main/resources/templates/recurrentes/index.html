@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Recurrentes y MSI')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Recurrentes y MSI')}"></header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Recurrentes y Meses Sin Intereses</h1>
+                    <p class="page-subtitle">Automatiza tus pagos o ingresos fijos y controla el calendario exacto de tus compras a plazos</p>
+                </div>
+                <div class="page-actions">
+                    <form th:action="@{/recurrentes/ejecutar-pendientes}" method="post" class="inline-form">
+                        <button type="submit" class="btn btn-secondary btn-sm">Ejecutar cobros vencidos hoy</button>
+                    </form>
+                </div>
+            </div>
+
+            <div th:if="${mensajeExito}" class="alert alert-success" role="status" th:text="${mensajeExito}"></div>
+            <div th:if="${mensajeError}" class="alert alert-error" role="alert" th:text="${mensajeError}"></div>
+
+            <!-- KPIs con iconos -->
+            <section class="balance-grid" aria-label="Resumen de recurrentes y MSI">
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Recurrentes programados</span>
+                        <span class="metric-icon metric-icon-blue" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                                <path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value" th:text="${#lists.size(recurrentes)}">0</strong>
+                    <span class="metric-sub">Se generan automáticamente al vencer</span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Compromiso mensual MSI</span>
+                        <span class="metric-icon metric-icon-red" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-expense"
+                            th:text="${'$' + #numbers.formatDecimal(compromisoMensualMsi, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></strong>
+                    <span class="metric-sub">Suma de la próxima mensualidad activa</span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Saldo pendiente total MSI</span>
+                        <span class="metric-icon metric-icon-indigo" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value"
+                            th:text="${'$' + #numbers.formatDecimal(saldoPendienteMsi, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></strong>
+                    <span class="metric-sub" th:text="${#lists.size(comprasMsi) + ' compra(s) registrada(s)'}"></span>
+                </article>
+            </section>
+
+            <!-- Pestañas claras para separar Recurrentes de MSI -->
+            <div class="tabs-bar" role="tablist" aria-label="Secciones de recurrentes y MSI">
+                <button type="button"
+                        class="tab-btn js-tab-btn"
+                        th:classappend="${!#fields.hasErrors('msiForm.*')} ? ' active' : ''"
+                        data-tab-target="panel-recurrentes"
+                        role="tab">
+                    <span>Movimientos recurrentes</span>
+                    <span class="tab-count" th:text="${#lists.size(recurrentes)}">0</span>
+                </button>
+                <button type="button"
+                        class="tab-btn js-tab-btn"
+                        th:classappend="${#fields.hasErrors('msiForm.*')} ? ' active' : ''"
+                        data-tab-target="panel-msi"
+                        role="tab">
+                    <span>Meses Sin Intereses (MSI)</span>
+                    <span class="tab-count" th:text="${#lists.size(comprasMsi)}">0</span>
+                </button>
+            </div>
+
+            <!-- PANEL 1: RECURRENTES -->
+            <section class="card section-card js-tab-panel"
+                     data-tab-panel="panel-recurrentes"
+                     th:classappend="${#fields.hasErrors('msiForm.*')} ? ' hidden' : ''"
+                     aria-labelledby="titulo-recurrentes">
+                <div class="section-header">
+                    <div>
+                        <h2 id="titulo-recurrentes">Pagos e ingresos recurrentes</h2>
+                        <span class="section-hint">Respeta días 29, 30 y 31 en meses cortos y años bisiestos</span>
+                    </div>
+                </div>
+
+                <div th:if="${#lists.isEmpty(recurrentes)}" class="empty-state">
+                    <p>Aún no tienes movimientos recurrentes programados.</p>
+                </div>
+
+                <div th:if="${!#lists.isEmpty(recurrentes)}" class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>Descripción</th>
+                            <th>Periodicidad</th>
+                            <th>Próximo cobro</th>
+                            <th>Categoría / Cuenta</th>
+                            <th>Estado</th>
+                            <th class="col-amount">Monto</th>
+                            <th class="col-actions">Acciones</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="rec : ${recurrentes}" th:classappend="${!rec.activo} ? ' row-duplicate' : ''">
+                            <td class="mov-desc" th:text="${rec.descripcion}"></td>
+                            <td class="nowrap">
+                                <span th:text="${rec.periodicidad.etiqueta}"></span>
+                                <span class="metric-sub" th:text="${' (día ' + rec.diaReferencia + ')'}"></span>
+                            </td>
+                            <td class="nowrap" th:text="${#temporals.format(rec.proximoCobro, 'dd/MM/yyyy')}"></td>
+                            <td>
+                                <span class="tag" th:text="${rec.categoria.nombre}"></span>
+                                <span class="text-muted" th:text="${' · ' + rec.cuenta.nombre}"></span>
+                            </td>
+                            <td>
+                                <span class="status-badge status-normal" th:if="${rec.activo}">Activo</span>
+                                <span class="status-badge status-sin_presupuesto" th:if="${!rec.activo}">Pausado</span>
+                            </td>
+                            <td class="col-amount nowrap"
+                                th:classappend="${rec.tipo.name() == 'INGRESO'} ? ' text-income' : ' text-expense'"
+                                th:text="${(rec.tipo.name() == 'INGRESO' ? '+' : '-') + '$' + #numbers.formatDecimal(rec.monto, 1, 'COMMA', 2, 'POINT')}"></td>
+                            <td class="col-actions nowrap">
+                                <form th:action="@{/recurrentes/{id}/alternar(id=${rec.id})}" method="post" class="inline-form">
+                                    <button type="submit" class="btn-link" th:text="${rec.activo ? 'Pausar' : 'Activar'}"></button>
+                                </form>
+                                <form th:action="@{/recurrentes/{id}/eliminar(id=${rec.id})}"
+                                      method="post" class="inline-form" th:attr="data-descripcion=${rec.descripcion}">
+                                    <button type="button" class="btn-link btn-danger js-delete-trigger">Borrar</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <details class="edit-card-details rules-table-wrap"
+                         th:open="${#lists.isEmpty(recurrentes) or #fields.hasErrors('recurrenteForm.*')}">
+                    <summary>+ Programar nuevo movimiento recurrente</summary>
+                    <form th:action="@{/recurrentes}" th:object="${recurrenteForm}" method="post" class="quick-form edit-card-form" novalidate>
+                        <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-error" role="alert">
+                            <p th:each="err : ${#fields.globalErrors()}" th:text="${err}"></p>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="rec-desc">Descripción</label>
+                                <input id="rec-desc" type="text" maxlength="255" placeholder="Ej. Renta, Internet, Gimnasio, Nómina..." th:field="*{descripcion}" required>
+                                <span class="field-error" th:if="${#fields.hasErrors('descripcion')}" th:errors="*{descripcion}"></span>
+                            </div>
+                            <div class="field">
+                                <label for="rec-tipo">Tipo</label>
+                                <select id="rec-tipo" th:field="*{tipo}" required>
+                                    <option th:each="t : ${tiposMovimiento}" th:value="${t}" th:text="${t.etiqueta}"></option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="rec-monto">Monto (MXN)</label>
+                                <input id="rec-monto" type="number" step="0.01" min="0.01" placeholder="0.00" th:field="*{monto}" required>
+                                <span class="field-error" th:if="${#fields.hasErrors('monto')}" th:errors="*{monto}"></span>
+                            </div>
+                            <div class="field">
+                                <label for="rec-periodicidad">Periodicidad</label>
+                                <select id="rec-periodicidad" th:field="*{periodicidad}" required>
+                                    <option th:each="p : ${periodicidades}" th:value="${p}" th:text="${p.etiqueta}"></option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="rec-proximo">Próximo cobro</label>
+                                <input id="rec-proximo" type="date" th:field="*{proximoCobro}" required>
+                                <span class="field-error" th:if="${#fields.hasErrors('proximoCobro')}" th:errors="*{proximoCobro}"></span>
+                            </div>
+                            <div class="field">
+                                <label for="rec-categoria">Categoría</label>
+                                <select id="rec-categoria" th:field="*{categoriaId}" required>
+                                    <option value="">Selecciona categoría</option>
+                                    <option th:each="cat : ${categorias}" th:value="${cat.id}" th:text="${cat.nombre}"></option>
+                                </select>
+                                <span class="field-error" th:if="${#fields.hasErrors('categoriaId')}" th:errors="*{categoriaId}"></span>
+                            </div>
+                            <div class="field">
+                                <label for="rec-cuenta">Cuenta</label>
+                                <select id="rec-cuenta" th:field="*{cuentaId}" required>
+                                    <option th:each="cta : ${cuentas}" th:value="${cta.id}" th:text="${cta.nombre}"></option>
+                                </select>
+                                <span class="field-error" th:if="${#fields.hasErrors('cuentaId')}" th:errors="*{cuentaId}"></span>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Programar recurrente</button>
+                        </div>
+                    </form>
+                </details>
+            </section>
+
+            <!-- PANEL 2: MESES SIN INTERESES -->
+            <section class="card section-card js-tab-panel"
+                     data-tab-panel="panel-msi"
+                     th:classappend="${!#fields.hasErrors('msiForm.*')} ? ' hidden' : ''"
+                     aria-labelledby="titulo-msi">
+                <div class="section-header">
+                    <div>
+                        <h2 id="titulo-msi">Compras a Meses Sin Intereses (MSI)</h2>
+                        <span class="section-hint">Reparte centavos con exactitud para que la suma coincida al centavo con el total</span>
+                    </div>
+                </div>
+
+                <div th:if="${#lists.isEmpty(comprasMsi)}" class="empty-state">
+                    <p>No tienes compras a meses sin intereses registradas.</p>
+                </div>
+
+                <div th:if="${!#lists.isEmpty(comprasMsi)}" class="timeline">
+                    <article class="day-card" th:each="compra : ${comprasMsi}">
+                        <div class="day-header">
+                            <div>
+                                <h3 class="day-title" th:text="${compra.descripcion}"></h3>
+                                <div class="day-totals">
+                                    <span class="tag" th:text="${compra.cuenta.nombre}"></span>
+                                    <span class="tag" th:if="${compra.categoria != null}" th:text="${compra.categoria.nombre}"></span>
+                                    <span class="text-muted"
+                                          th:text="${'Total: $' + #numbers.formatDecimal(compra.montoTotal, 1, 'COMMA', 2, 'POINT') + ' MXN · ' + compra.mensualidadesPagadas + '/' + compra.numeroMensualidades + ' pagadas'}"></span>
+                                </div>
+                            </div>
+
+                            <div class="day-actions">
+                                <span class="status-badge status-normal" th:if="${compra.estaLiquidada()}">Liquidada</span>
+                                <span class="status-badge status-aviso"
+                                      th:if="${!compra.estaLiquidada()}"
+                                      th:text="${'Faltan ' + compra.mensualidadesRestantes()}"></span>
+                                <form th:action="@{/recurrentes/msi/{id}/eliminar(id=${compra.id})}"
+                                      method="post" class="inline-form" th:attr="data-descripcion=${compra.descripcion}">
+                                    <button type="button" class="btn-link btn-danger js-delete-trigger">Borrar</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="progress-meta">
+                                <span th:text="${compra.porcentajeAvance() + ' % pagado ($' + #numbers.formatDecimal(compra.montoPagado(), 1, 'COMMA', 2, 'POINT') + ')'}"></span>
+                                <span th:text="${'Pendiente: $' + #numbers.formatDecimal(compra.saldoPendiente(), 1, 'COMMA', 2, 'POINT') + ' MXN'}"></span>
+                            </div>
+                            <progress class="budget-progress progress-normal" max="100" th:value="${compra.porcentajeAvance()}"></progress>
+                        </div>
+
+                        <div class="msi-next-row" th:if="${!compra.estaLiquidada()}">
+                            <span th:with="sig=${compra.proximaMensualidad()}"
+                                  th:text="${'Próxima cuota (#' + sig.numero + '): $' + #numbers.formatDecimal(sig.monto, 1, 'COMMA', 2, 'POINT') + ' MXN · ' + #temporals.format(sig.fechaCargo, 'dd/MM/yyyy')}"></span>
+                            <form th:action="@{/recurrentes/msi/{id}/pagar-cuota(id=${compra.id})}" method="post" class="inline-form msi-pay-form">
+                                <label class="check-inline msi-check">
+                                    <input type="checkbox" name="crearMovimiento" value="true" checked>
+                                    <span>Crear gasto en Movimientos</span>
+                                </label>
+                                <button type="submit" class="btn btn-secondary btn-sm">Marcar cuota pagada</button>
+                            </form>
+                        </div>
+
+                        <details class="edit-card-details">
+                            <summary th:text="${'Ver calendario exacto de ' + compra.numeroMensualidades + ' mensualidades'}"></summary>
+                            <div class="table-wrapper rules-table-wrap">
+                                <table class="data-table">
+                                    <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Fecha cargo</th>
+                                        <th>Estado</th>
+                                        <th class="col-amount">Monto exacto</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr th:each="cuota : ${compra.calcularPlanMensualidades()}" th:classappend="${cuota.pagada} ? ' row-duplicate' : ''">
+                                        <td th:text="${cuota.numero + '/' + compra.numeroMensualidades}"></td>
+                                        <td class="nowrap" th:text="${#temporals.format(cuota.fechaCargo, 'dd/MM/yyyy')}"></td>
+                                        <td>
+                                            <span class="status-badge status-normal" th:if="${cuota.pagada}">Pagada</span>
+                                            <span class="status-badge status-sin_presupuesto" th:if="${!cuota.pagada}">Pendiente</span>
+                                        </td>
+                                        <td class="col-amount nowrap"
+                                            th:text="${'$' + #numbers.formatDecimal(cuota.monto, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    </article>
+                </div>
+
+                <details class="edit-card-details rules-table-wrap"
+                         th:open="${#lists.isEmpty(comprasMsi) or #fields.hasErrors('msiForm.*')}">
+                    <summary>+ Registrar nueva compra a MSI</summary>
+                    <form th:action="@{/recurrentes/msi}" th:object="${msiForm}" method="post" class="quick-form edit-card-form" novalidate>
+                        <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-error" role="alert">
+                            <p th:each="err : ${#fields.globalErrors()}" th:text="${err}"></p>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="msi-desc">Descripción de la compra</label>
+                                <input id="msi-desc" type="text" maxlength="255" placeholder="Ej. Laptop, Vuelo, Electrodoméstico..." th:field="*{descripcion}" required>
+                                <span class="field-error" th:if="${#fields.hasErrors('descripcion')}" th:errors="*{descripcion}"></span>
+                            </div>
+                            <div class="field">
+                                <label for="msi-total">Monto total (MXN)</label>
+                                <input id="msi-total" type="number" step="0.01" min="0.01" placeholder="Ej. 1000.00" th:field="*{montoTotal}" required>
+                                <span class="field-error" th:if="${#fields.hasErrors('montoTotal')}" th:errors="*{montoTotal}"></span>
+                            </div>
+                            <div class="field">
+                                <label for="msi-plazo">Mensualidades totales</label>
+                                <input id="msi-plazo" type="number" min="2" max="60" th:field="*{numeroMensualidades}" required>
+                                <span class="field-error" th:if="${#fields.hasErrors('numeroMensualidades')}" th:errors="*{numeroMensualidades}"></span>
+                            </div>
+                            <div class="field">
+                                <label for="msi-pagadas">Ya pagadas</label>
+                                <input id="msi-pagadas" type="number" min="0" max="60" th:field="*{mensualidadesPagadas}" required>
+                                <span class="field-error" th:if="${#fields.hasErrors('mensualidadesPagadas')}" th:errors="*{mensualidadesPagadas}"></span>
+                            </div>
+                            <div class="field">
+                                <label for="msi-fecha">Fecha primer cargo</label>
+                                <input id="msi-fecha" type="date" th:field="*{fechaPrimerCargo}" required>
+                                <span class="field-error" th:if="${#fields.hasErrors('fechaPrimerCargo')}" th:errors="*{fechaPrimerCargo}"></span>
+                            </div>
+                            <div class="field">
+                                <label for="msi-cuenta">Cuenta / Tarjeta</label>
+                                <select id="msi-cuenta" th:field="*{cuentaId}" required>
+                                    <option th:each="cta : ${cuentas}" th:value="${cta.id}" th:text="${cta.nombre + ' (' + cta.tipo.etiqueta + ')'}"></option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="msi-categoria">Categoría (opcional)</label>
+                                <select id="msi-categoria" th:field="*{categoriaId}">
+                                    <option value="">Sin categoría específica</option>
+                                    <option th:each="cat : ${categorias}" th:value="${cat.id}" th:text="${cat.nombre}"></option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Registrar compra MSI</button>
+                        </div>
+                    </form>
+                </details>
+            </section>
+        </main>
+
+        <dialog id="confirm-delete-dialog" class="confirm-dialog" aria-labelledby="dialog-title">
+            <h3 id="dialog-title">Confirmar eliminación</h3>
+            <p id="dialog-message">¿Seguro que deseas eliminar este registro?</p>
+            <div class="dialog-actions">
+                <button type="button" id="dialog-cancel" class="btn btn-ghost">Cancelar</button>
+                <button type="button" id="dialog-confirm" class="btn btn-danger-solid">Eliminar</button>
+            </div>
+        </dialog>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+        <nav th:replace="~{fragments/layout :: bottomnav}"></nav>
+    </div>
+</div>
+</body>
+</html>

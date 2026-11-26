@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(titulo)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${titulo} + ' · Diario Financiero'">Diario Financiero</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+
+<aside th:fragment="sidebar" id="app-sidebar" class="sidebar" aria-label="Menú principal">
+    <div class="sidebar-header">
+        <a th:href="@{/}" class="sidebar-brand" data-tooltip="Diario Financiero">
+            <span class="brand-mark">DF</span>
+            <div class="brand-copy">
+                <span class="brand-name">Diario Financiero</span>
+                <span class="brand-sub">MXN · Local</span>
+            </div>
+        </a>
+        <button type="button"
+                id="sidebar-collapse-btn"
+                class="icon-btn sidebar-collapse-btn"
+                title="Contraer o expandir menú"
+                aria-label="Contraer o expandir menú">
+            <svg class="nav-icon collapse-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+        </button>
+        <button type="button" id="sidebar-close" class="icon-btn sidebar-close" aria-label="Cerrar menú">✕</button>
+    </div>
+
+    <div class="sidebar-cta">
+        <a th:href="@{/movimientos/nuevo}"
+           class="btn btn-primary btn-cta-sidebar"
+           data-tooltip="Nuevo movimiento">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span class="sidebar-label">Nuevo movimiento</span>
+        </a>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-group">
+            <span class="nav-group-title">Día a día</span>
+            <a th:href="@{/}"
+               class="sidebar-link"
+               data-tooltip="Inicio"
+               th:classappend="${paginaActiva == 'inicio'} ? ' active' : ''">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z"/>
+                </svg>
+                <span class="sidebar-label">Inicio</span>
+            </a>
+            <a th:href="@{/movimientos/nuevo}"
+               class="sidebar-link"
+               data-tooltip="Crear gasto / ingreso"
+               th:classappend="${paginaActiva == 'nuevo'} ? ' active' : ''">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                <span class="sidebar-label">Registrar gasto</span>
+            </a>
+            <a th:href="@{/movimientos}"
+               class="sidebar-link"
+               data-tooltip="Ver movimientos"
+               th:classappend="${paginaActiva == 'movimientos'} ? ' active' : ''">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+                </svg>
+                <span class="sidebar-label">Movimientos</span>
+            </a>
+            <a th:href="@{/diario}"
+               class="sidebar-link"
+               data-tooltip="Diario"
+               th:classappend="${paginaActiva == 'diario'} ? ' active' : ''">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                </svg>
+                <span class="sidebar-label">Diario</span>
+            </a>
+        </div>
+
+        <div class="nav-group">
+            <span class="nav-group-title">Plan y control</span>
+            <a th:href="@{/presupuestos}"
+               class="sidebar-link"
+               data-tooltip="Presupuestos"
+               th:classappend="${paginaActiva == 'presupuestos'} ? ' active' : ''">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                <span class="sidebar-label">Presupuestos</span>
+            </a>
+            <a th:href="@{/graficas}"
+               class="sidebar-link"
+               data-tooltip="Gráficas"
+               th:classappend="${paginaActiva == 'graficas'} ? ' active' : ''">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M3 3v18h18M7 16l4-5 4 3 5-7"/>
+                </svg>
+                <span class="sidebar-label">Gráficas</span>
+            </a>
+            <a th:href="@{/tarjetas}"
+               class="sidebar-link"
+               data-tooltip="Tarjetas"
+               th:classappend="${paginaActiva == 'tarjetas'} ? ' active' : ''">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <path d="M2 10h20"/>
+                </svg>
+                <span class="sidebar-label">Tarjetas</span>
+                <span class="nav-badge nav-badge-warn"
+                      th:if="${navAlertasTarjetas != null and navAlertasTarjetas > 0}"
+                      th:text="${navAlertasTarjetas}">1</span>
+            </a>
+            <a th:href="@{/recurrentes}"
+               class="sidebar-link"
+               data-tooltip="Recurrentes y MSI"
+               th:classappend="${paginaActiva == 'recurrentes'} ? ' active' : ''">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M17 2l4 4-4 4"/>
+                    <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                    <path d="M7 22l-4-4 4-4"/>
+                    <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                </svg>
+                <span class="sidebar-label">Recurrentes y MSI</span>
+            </a>
+        </div>
+
+        <div class="nav-group">
+            <span class="nav-group-title">Datos</span>
+            <a th:href="@{/importacion}"
+               class="sidebar-link"
+               data-tooltip="Importar CSV"
+               th:classappend="${paginaActiva == 'importacion'} ? ' active' : ''">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span class="sidebar-label">Importar CSV</span>
+                <span class="nav-badge"
+                      th:if="${navPendientesCsv != null and navPendientesCsv > 0}"
+                      th:text="${navPendientesCsv}">0</span>
+            </a>
+            <a th:href="@{/respaldo}"
+               class="sidebar-link"
+               data-tooltip="Exportar y Respaldo"
+               th:classappend="${paginaActiva == 'respaldo'} ? ' active' : ''">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                </svg>
+                <span class="sidebar-label">Exportar y Respaldo</span>
+            </a>
+        </div>
+    </nav>
+
+    <div class="sidebar-footer">
+        <span class="sidebar-pill" title="Aplicación 100 % local">
+            <span class="status-dot"></span>
+            <span class="sidebar-label">Solo local · MXN</span>
+        </span>
+    </div>
+</aside>
+
+<div th:fragment="backdrop" id="sidebar-backdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+
+<header th:fragment="mobilebar(titulo)" class="mobilebar">
+    <button type="button" id="sidebar-open" class="icon-btn" aria-label="Abrir menú">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+    <span class="mobilebar-title" th:text="${titulo}">Diario Financiero</span>
+    <a th:href="@{/movimientos/nuevo}" class="btn btn-primary btn-sm">+ Nuevo</a>
+</header>
+
+<nav th:fragment="bottomnav" class="bottom-nav" aria-label="Accesos rápidos móviles">
+    <a th:href="@{/}" class="bottom-nav-link" th:classappend="${paginaActiva == 'inicio'} ? ' active' : ''">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z"/>
+        </svg>
+        <span>Inicio</span>
+    </a>
+    <a th:href="@{/movimientos}" class="bottom-nav-link" th:classappend="${paginaActiva == 'movimientos'} ? ' active' : ''">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+        </svg>
+        <span>Lista</span>
+    </a>
+    <a th:href="@{/movimientos/nuevo}" class="bottom-nav-link bottom-nav-fab" th:classappend="${paginaActiva == 'nuevo'} ? ' active' : ''">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        <span>Nuevo</span>
+    </a>
+    <a th:href="@{/presupuestos}" class="bottom-nav-link" th:classappend="${paginaActiva == 'presupuestos'} ? ' active' : ''">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        <span>Topes</span>
+    </a>
+    <a th:href="@{/diario}" class="bottom-nav-link" th:classappend="${paginaActiva == 'diario'} ? ' active' : ''">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+        </svg>
+        <span>Diario</span>
+    </a>
+</nav>
+
+<footer th:fragment="footer" class="footer">
+    <p>Diario Financiero · Datos guardados localmente en tu equipo. Herramienta personal, no constituye asesoría financiera.</p>
+    <script th:src="@{/js/app.js}" defer></script>
+</footer>
+
+</body>
+</html>

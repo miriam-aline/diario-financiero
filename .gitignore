@@ -1,0 +1,23 @@
+# Build Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Base de datos local y datos reales del usuario
+data/
+backups/
+*.mv.db
+*.trace.db
+*.db
+*.csv
+!src/test/resources/**/*.csv
+
+# Variables de entorno locales
+.env
+.env.*
+
+# IDEs y sistema operativo
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.log

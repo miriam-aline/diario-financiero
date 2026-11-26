@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Revisar sin categoría')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Revisión CSV')}"></header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Revisión de «Sin categoría»</h1>
+                    <p class="page-subtitle">Asigna categoría y guarda reglas automáticas para tus próximas importaciones</p>
+                </div>
+                <div class="page-actions">
+                    <a th:href="@{/importacion}" class="btn btn-ghost btn-sm">← Volver a importar</a>
+                    <a th:href="@{/movimientos}" class="btn btn-secondary btn-sm">Ver movimientos</a>
+                </div>
+            </div>
+
+            <div class="steps-bar" aria-label="Pasos de importación">
+                <div class="step-item"><span class="step-num">1</span><span>Sube y configura el CSV</span></div>
+                <div class="step-item"><span class="step-num">2</span><span>Revisa la vista previa</span></div>
+                <div class="step-item active"><span class="step-num">3</span><span>Clasifica «Sin categoría»</span></div>
+            </div>
+
+            <div th:if="${mensajeExito}" class="alert alert-success" role="status" th:text="${mensajeExito}"></div>
+            <div th:if="${mensajeError}" class="alert alert-error" role="alert" th:text="${mensajeError}"></div>
+
+            <section class="card section-card">
+                <div th:if="${#lists.isEmpty(pendientes)}" class="empty-state">
+                    <p>¡Todo clasificado! No tienes movimientos pendientes en «Sin categoría».</p>
+                    <a th:href="@{/movimientos}" class="btn btn-primary btn-sm">Ir a movimientos</a>
+                </div>
+
+                <div th:if="${!#lists.isEmpty(pendientes)}" class="timeline">
+                    <article class="day-card" th:each="mov : ${pendientes}">
+                        <div class="day-header">
+                            <div>
+                                <strong th:text="${mov.descripcion}">Descripción</strong>
+                                <div class="day-totals">
+                                    <span class="text-muted" th:text="${#temporals.format(mov.fecha, 'dd/MM/yyyy')}"></span>
+                                    <span class="text-muted" th:text="${mov.cuenta.nombre}"></span>
+                                    <span class="tag" th:text="${mov.origen.etiqueta}"></span>
+                                </div>
+                            </div>
+                            <strong class="mov-amount"
+                                    th:classappend="${mov.tipo.name() == 'INGRESO'} ? ' text-income' : ' text-expense'"
+                                    th:text="${(mov.tipo.name() == 'INGRESO' ? '+' : '-') + '$' + #numbers.formatDecimal(mov.monto, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></strong>
+                        </div>
+
+                        <form th:action="@{/importacion/revision/{id}(id=${mov.id})}" method="post" class="review-form">
+                            <div class="field">
+                                <label>Categoría</label>
+                                <select name="categoriaId" required>
+                                    <option value="">Selecciona categoría</option>
+                                    <option th:each="cat : ${categorias}" th:value="${cat.id}" th:text="${cat.nombre}"></option>
+                                </select>
+                            </div>
+
+                            <div class="field field-wide">
+                                <label>Texto para regla automática (opcional)</label>
+                                <input type="text" name="textoRegla" maxlength="120" th:value="${mov.descripcion}">
+                            </div>
+
+                            <label class="check-inline review-check">
+                                <input type="checkbox" name="guardarRegla" value="true" checked>
+                                <span>Guardar regla y aplicar a similares</span>
+                            </label>
+
+                            <div class="filter-actions">
+                                <button type="submit" class="btn btn-primary btn-sm">Asignar</button>
+                            </div>
+                        </form>
+                    </article>
+                </div>
+            </section>
+        </main>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+    </div>
+</div>
+</body>
+</html>

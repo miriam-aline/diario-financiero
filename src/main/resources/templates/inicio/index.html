@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Inicio')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Inicio')}"></header>
+
+        <main class="main-content">
+            <!-- Hero de bienvenida estético lila-rosa -->
+            <section class="hero-banner" aria-label="Bienvenida">
+                <div class="hero-copy">
+                    <span class="hero-kicker" th:text="${etiquetaMes + ' · Pesos mexicanos (MXN)'}"></span>
+                    <h1 class="hero-title">Tu diario financiero personal</h1>
+                    <p class="hero-subtitle">Controla tus gastos, presupuestos, tarjetas y reflexiones en un espacio claro y tuyo.</p>
+                </div>
+                <div class="hero-actions">
+                    <a th:href="@{/movimientos/nuevo(tipo='GASTO')}" class="btn btn-hero-primary">+ Registrar gasto</a>
+                    <a th:href="@{/movimientos/nuevo(tipo='INGRESO')}" class="btn btn-hero-soft">+ Registrar ingreso</a>
+                </div>
+            </section>
+
+            <!-- Avisos importantes -->
+            <div th:if="${!#lists.isEmpty(alertasPago)}" class="alert alert-warning" role="alert">
+                <strong>Aviso de pago cercano en tarjetas:</strong>
+                <ul class="alert-list">
+                    <li th:each="alerta : ${alertasPago}">
+                        <a th:href="@{/tarjetas}" class="alert-link" th:text="${alerta.nombreTarjeta}">Tarjeta</a>
+                        <span th:text="${alerta.diasRestantes == 0 ? ' · vence HOY' : ' · vence en ' + alerta.diasRestantes + ' día(s)'}"></span>
+                        <span th:text="${' · Estimado: $' + #numbers.formatDecimal(alerta.estimadoAPagar, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></span>
+                    </li>
+                </ul>
+            </div>
+
+            <div th:if="${pendientesSinCategoria > 0}" class="alert alert-warning" role="status">
+                <span th:text="${'Tienes ' + pendientesSinCategoria + ' movimiento(s) en «Sin categoría» por clasificar. '}"></span>
+                <a th:href="@{/importacion/revision}" class="alert-link">Revisar ahora →</a>
+            </div>
+
+            <!-- 4 KPIs con iconos -->
+            <section class="balance-grid" aria-label="Indicadores del mes">
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Balance del mes</span>
+                        <span class="metric-icon metric-icon-lilac" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value"
+                            th:classappend="${balanceMes.balance.signum() >= 0} ? ' metric-income' : ' metric-expense'"
+                            th:text="${'$' + #numbers.formatDecimal(balanceMes.balance, 1, 'COMMA', 2, 'POINT')}">$0.00</strong>
+                    <span class="metric-sub" th:text="${totalMovimientosMes + ' movimiento(s) este mes'}"></span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Ingresos</span>
+                        <span class="metric-icon metric-icon-green" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                                <polyline points="17 6 23 6 23 12"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-income"
+                            th:text="${'$' + #numbers.formatDecimal(balanceMes.totalIngresos, 1, 'COMMA', 2, 'POINT')}">$0.00</strong>
+                    <span class="metric-sub" th:text="${etiquetaMes}"></span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Gastos</span>
+                        <span class="metric-icon metric-icon-red" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+                                <polyline points="17 18 23 18 23 12"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-expense"
+                            th:text="${'$' + #numbers.formatDecimal(balanceMes.totalGastos, 1, 'COMMA', 2, 'POINT')}">$0.00</strong>
+                    <span class="metric-sub" th:if="${presupuestosResumen.porcentajeAvanceGlobal != null}"
+                          th:text="${presupuestosResumen.porcentajeAvanceGlobal + ' % de tu presupuesto'}"></span>
+                    <span class="metric-sub" th:if="${presupuestosResumen.porcentajeAvanceGlobal == null}">Sin presupuesto definido aún</span>
+                </article>
+
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Tarjetas y MSI</span>
+                        <span class="metric-icon metric-icon-rose" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="5" width="20" height="14" rx="2"/>
+                                <path d="M2 10h20"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value"
+                            th:text="${'$' + #numbers.formatDecimal(totalProximoCorte, 1, 'COMMA', 2, 'POINT')}">$0.00</strong>
+                    <span class="metric-sub"
+                          th:text="${totalTarjetas + ' tarjeta(s) · MSI mes: $' + #numbers.formatDecimal(compromisoMsi, 1, 'COMMA', 2, 'POINT')}"></span>
+                </article>
+            </section>
+
+            <!-- Contenido en 2 columnas equilibradas -->
+            <div class="dashboard-grid">
+                <div class="dashboard-col">
+                    <section class="card section-card" aria-labelledby="titulo-ultimos">
+                        <div class="section-header">
+                            <div>
+                                <h2 id="titulo-ultimos">Últimos movimientos del mes</h2>
+                                <span class="section-hint">Vista rápida de tus registros recientes</span>
+                            </div>
+                            <a th:href="@{/movimientos}" class="btn-link">Ver y editar todos →</a>
+                        </div>
+
+                        <div th:if="${#lists.isEmpty(ultimosMovimientos)}" class="empty-state">
+                            <p>Aún no tienes movimientos registrados en este mes.</p>
+                            <div class="form-actions form-actions-center">
+                                <a th:href="@{/movimientos/nuevo}" class="btn btn-primary btn-sm">+ Registrar primero</a>
+                            </div>
+                        </div>
+
+                        <ul class="day-movements day-movements-plain" th:if="${!#lists.isEmpty(ultimosMovimientos)}">
+                            <li class="day-movement-item" th:each="mov : ${ultimosMovimientos}">
+                                <span class="text-muted nowrap" th:text="${#temporals.format(mov.fecha, 'dd/MM')}"></span>
+                                <span class="mov-desc" th:text="${mov.descripcion}"></span>
+                                <span class="tag" th:text="${mov.categoria.nombre}"></span>
+                                <span class="mov-amount"
+                                      th:classappend="${mov.tipo.name() == 'INGRESO'} ? ' text-income' : ' text-expense'"
+                                      th:text="${(mov.tipo.name() == 'INGRESO' ? '+' : '-') + '$' + #numbers.formatDecimal(mov.monto, 1, 'COMMA', 2, 'POINT')}"></span>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <section class="card section-card" aria-labelledby="titulo-accesos">
+                        <div class="section-header">
+                            <h2 id="titulo-accesos">Explora tus herramientas</h2>
+                        </div>
+                        <div class="quick-links-grid">
+                            <a th:href="@{/graficas}" class="quick-tile">
+                                <span class="metric-icon metric-icon-lilac" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 3v18h18M7 16l4-5 4 3 5-7"/>
+                                    </svg>
+                                </span>
+                                <div class="quick-tile-copy">
+                                    <strong>Gráficas</strong>
+                                    <span>Dona, barras y avance</span>
+                                </div>
+                            </a>
+                            <a th:href="@{/tarjetas}" class="quick-tile">
+                                <span class="metric-icon metric-icon-rose" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+                                    </svg>
+                                </span>
+                                <div class="quick-tile-copy">
+                                    <strong>Tarjetas</strong>
+                                    <span>Cortes y ciclos</span>
+                                </div>
+                            </a>
+                            <a th:href="@{/recurrentes}" class="quick-tile">
+                                <span class="metric-icon metric-icon-amber" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                                        <path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                                    </svg>
+                                </span>
+                                <div class="quick-tile-copy">
+                                    <strong>Recurrentes / MSI</strong>
+                                    <span>Fijos y plazos</span>
+                                </div>
+                            </a>
+                            <a th:href="@{/importacion}" class="quick-tile">
+                                <span class="metric-icon metric-icon-blue" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                                    </svg>
+                                </span>
+                                <div class="quick-tile-copy">
+                                    <strong>Importar CSV</strong>
+                                    <span>Extracto bancario</span>
+                                </div>
+                            </a>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="dashboard-col">
+                    <section class="card section-card" aria-labelledby="titulo-inicio-presupuestos">
+                        <div class="section-header">
+                            <h2 id="titulo-inicio-presupuestos">Presupuestos del mes</h2>
+                            <a th:href="@{/presupuestos}" class="btn-link">Configurar →</a>
+                        </div>
+
+                        <div th:if="${#lists.isEmpty(presupuestosDestacados)}" class="empty-state">
+                            <p>Todavía no defines topes mensuales.</p>
+                            <a th:href="@{/presupuestos}" class="btn btn-soft btn-sm">Definir presupuestos</a>
+                        </div>
+
+                        <div class="mini-budget-list" th:if="${!#lists.isEmpty(presupuestosDestacados)}">
+                            <div class="mini-budget-item" th:each="item : ${presupuestosDestacados}">
+                                <div class="mini-budget-top">
+                                    <strong th:text="${item.categoriaNombre}"></strong>
+                                    <span class="status-badge"
+                                          th:classappend="${' status-' + item.estado.name().toLowerCase()}"
+                                          th:text="${item.porcentajeAvance + ' %'}"></span>
+                                </div>
+                                <progress class="budget-progress"
+                                          th:classappend="${' progress-' + item.estado.name().toLowerCase()}"
+                                          max="100"
+                                          th:value="${item.porcentajeBarra}"></progress>
+                                <span class="metric-sub"
+                                      th:text="${'$' + #numbers.formatDecimal(item.gastadoMes, 1, 'COMMA', 2, 'POINT') + ' de $' + #numbers.formatDecimal(item.presupuestoMensual, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="card section-card" aria-labelledby="titulo-inicio-diario">
+                        <div class="section-header">
+                            <h2 id="titulo-inicio-diario">Tu diario de hoy</h2>
+                            <a th:href="@{/diario}" class="btn-link" th:text="${notaHoy != null ? 'Editar →' : 'Escribir →'}"></a>
+                        </div>
+
+                        <div class="note-box" th:if="${notaHoy != null}">
+                            <div class="note-meta" th:if="${notaHoy.estadoDeAnimo != null}">
+                                <span class="mood-badge" th:text="${'Ánimo: ' + notaHoy.etiquetaAnimo()}"></span>
+                            </div>
+                            <p class="note-text" th:text="${notaHoy.nota}"></p>
+                        </div>
+
+                        <div th:if="${notaHoy == null}" class="empty-state">
+                            <p>Aún no escribes tu reflexión financiera de hoy.</p>
+                            <a th:href="@{/diario}" class="btn btn-soft btn-sm">Escribir nota de hoy</a>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+        <nav th:replace="~{fragments/layout :: bottomnav}"></nav>
+    </div>
+</div>
+</body>
+</html>

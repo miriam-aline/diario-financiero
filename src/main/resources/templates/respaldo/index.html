@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Exportar y Respaldo')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Exportar y Respaldo')}"></header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Exportar y Respaldo</h1>
+                    <p class="page-subtitle">Descarga tus movimientos en CSV y crea copias seguras fechadas de tu base de datos</p>
+                </div>
+                <div class="page-actions">
+                    <a th:href="@{/exportar/movimientos.csv}" class="btn btn-ghost btn-sm">Exportar todo en CSV</a>
+                    <form th:action="@{/respaldo/crear}" method="post" class="inline-form">
+                        <button type="submit" class="btn btn-primary btn-sm">Crear respaldo ahora</button>
+                    </form>
+                </div>
+            </div>
+
+            <div th:if="${mensajeExito}" class="alert alert-success" role="status" th:text="${mensajeExito}"></div>
+            <div th:if="${mensajeError}" class="alert alert-error" role="alert" th:text="${mensajeError}"></div>
+
+            <div class="dashboard-grid">
+                <section class="card section-card" aria-labelledby="titulo-exportar">
+                    <div class="section-header">
+                        <div>
+                            <h2 id="titulo-exportar">Exportar movimientos a CSV</h2>
+                            <span class="section-hint">UTF-8 con BOM listo para Excel o Google Sheets</span>
+                        </div>
+                        <span class="metric-icon metric-icon-green" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                        </span>
+                    </div>
+
+                    <form th:action="@{/exportar/movimientos.csv}" method="get" class="form-grid">
+                        <div class="field">
+                            <label for="exp-desde">Desde (opcional)</label>
+                            <input id="exp-desde" type="date" name="desde">
+                        </div>
+                        <div class="field">
+                            <label for="exp-hasta">Hasta (opcional)</label>
+                            <input id="exp-hasta" type="date" name="hasta">
+                        </div>
+                        <div class="field field-full">
+                            <label for="exp-categoria">Categoría (opcional)</label>
+                            <select id="exp-categoria" name="categoriaId">
+                                <option value="">Todas las categorías</option>
+                                <option th:each="cat : ${categorias}" th:value="${cat.id}" th:text="${cat.nombre}"></option>
+                            </select>
+                        </div>
+                        <div class="field field-full">
+                            <button type="submit" class="btn btn-secondary">Descargar CSV</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="card section-card" aria-labelledby="titulo-respaldo">
+                    <div class="section-header">
+                        <div>
+                            <h2 id="titulo-respaldo">Respaldo de base de datos</h2>
+                            <span class="section-hint">Copia consistente en caliente (.zip)</span>
+                        </div>
+                        <span class="metric-icon metric-icon-blue" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                            </svg>
+                        </span>
+                    </div>
+
+                    <p class="section-hint">
+                        Carpeta local: <code th:text="${directorioRespaldos}"></code>.
+                        Para restaurar: detén la app, descomprime el <code>.mv.db</code> en <code>./data/</code> y reinicia.
+                    </p>
+
+                    <div class="form-actions">
+                        <form th:action="@{/respaldo/crear}" method="post" class="inline-form">
+                            <button type="submit" class="btn btn-primary">Crear copia fechada ahora</button>
+                        </form>
+                    </div>
+                </section>
+            </div>
+
+            <section class="card section-card" aria-labelledby="titulo-historial-respaldos">
+                <div class="section-header">
+                    <h2 id="titulo-historial-respaldos">Historial de respaldos locales</h2>
+                    <span class="section-hint" th:text="${#lists.size(respaldos) + ' copia(s) guardada(s)'}"></span>
+                </div>
+
+                <div th:if="${#lists.isEmpty(respaldos)}" class="empty-state">
+                    <p>Todavía no has generado ningún respaldo local.</p>
+                </div>
+
+                <div th:if="${!#lists.isEmpty(respaldos)}" class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>Archivo</th>
+                            <th>Fecha y hora</th>
+                            <th class="col-amount">Tamaño</th>
+                            <th class="col-actions">Acciones</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="resp : ${respaldos}">
+                            <td><code th:text="${resp.nombreArchivo}"></code></td>
+                            <td class="nowrap" th:text="${#temporals.format(resp.fechaCreacion, 'dd/MM/yyyy HH:mm:ss')}"></td>
+                            <td class="col-amount nowrap" th:text="${resp.tamanoLegible}"></td>
+                            <td class="col-actions nowrap">
+                                <a th:href="@{/respaldo/descargar/{nombre}(nombre=${resp.nombreArchivo})}" class="btn-link">Descargar</a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+        <nav th:replace="~{fragments/layout :: bottomnav}"></nav>
+    </div>
+</div>
+</body>
+</html>

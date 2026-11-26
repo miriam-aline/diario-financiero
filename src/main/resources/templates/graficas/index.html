@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Gráficas')}"></head>
+<body>
+<div class="app-shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <div th:replace="~{fragments/layout :: backdrop}"></div>
+
+    <div class="app-main">
+        <header th:replace="~{fragments/layout :: mobilebar('Gráficas')}"></header>
+
+        <main id="graficas-app"
+              class="main-content"
+              th:attr="data-mes=${mesSeleccionado}, data-meses=${mesesVentana}">
+
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title" th:text="${'Gráficas · ' + datos.etiquetaMes}">Gráficas</h1>
+                    <p class="page-subtitle">Visualiza en qué gastas, tu ritmo diario contra presupuesto y tu evolución mensual</p>
+                </div>
+                <div class="page-actions">
+                    <a class="btn btn-ghost btn-sm" th:href="@{/graficas(mes=${mesAnterior}, meses=${mesesVentana})}">← Anterior</a>
+                    <form th:action="@{/graficas}" method="get" class="month-picker-form">
+                        <input type="hidden" name="meses" th:value="${mesesVentana}">
+                        <label for="grafica-mes" class="sr-only">Mes</label>
+                        <input id="grafica-mes" type="month" name="mes" th:value="${mesSeleccionado}">
+                        <button type="submit" class="btn btn-ghost btn-sm">Ver</button>
+                    </form>
+                    <a class="btn btn-ghost btn-sm" th:href="@{/graficas(mes=${mesSiguiente}, meses=${mesesVentana})}">Siguiente →</a>
+                </div>
+            </div>
+
+            <section class="balance-grid" aria-label="Totales del mes">
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Ingresos del mes</span>
+                        <span class="metric-icon metric-icon-green" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-income"
+                            th:text="${'$' + #numbers.formatDecimal(datos.totalIngresosMes, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></strong>
+                </article>
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Gastos del mes</span>
+                        <span class="metric-icon metric-icon-red" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value metric-expense"
+                            th:text="${'$' + #numbers.formatDecimal(datos.totalGastosMes, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></strong>
+                </article>
+                <article class="card metric-card">
+                    <div class="metric-top">
+                        <span class="metric-label">Presupuesto mensual total</span>
+                        <span class="metric-icon metric-icon-blue" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <strong class="metric-value"
+                            th:text="${'$' + #numbers.formatDecimal(datos.presupuestoTotalMes, 1, 'COMMA', 2, 'POINT') + ' MXN'}"></strong>
+                </article>
+            </section>
+
+            <div id="graficas-error" class="alert alert-error hidden" role="alert"></div>
+
+            <section class="charts-grid" aria-label="Gráficas financieras">
+                <article class="card section-card chart-card">
+                    <div class="section-header">
+                        <h2>Gasto por categoría</h2>
+                        <span class="section-hint" th:text="${datos.etiquetaMes}"></span>
+                    </div>
+                    <div id="empty-dona" class="empty-state hidden">
+                        <p>No hay gastos registrados en este mes.</p>
+                        <p class="empty-hint">Registra gastos en Movimientos para ver la distribución por categoría.</p>
+                    </div>
+                    <div id="wrap-dona" class="chart-canvas-wrap chart-canvas-dona">
+                        <canvas id="chart-dona-categorias" aria-label="Gráfica de dona de gasto por categoría"></canvas>
+                    </div>
+                </article>
+
+                <article class="card section-card chart-card">
+                    <div class="section-header">
+                        <h2>Gasto acumulado vs. presupuesto</h2>
+                        <span class="section-hint" id="hint-presupuesto">Evolución diaria del mes</span>
+                    </div>
+                    <div id="wrap-acumulado" class="chart-canvas-wrap">
+                        <canvas id="chart-gasto-acumulado" aria-label="Gráfica de línea de gasto acumulado del mes contra el presupuesto total"></canvas>
+                    </div>
+                </article>
+
+                <article class="card section-card chart-card chart-card-wide">
+                    <div class="section-header">
+                        <div>
+                            <h2>Ingresos vs. gastos por mes</h2>
+                            <span class="section-hint" th:text="${'Últimos ' + mesesVentana + ' meses hasta ' + datos.etiquetaMes}"></span>
+                        </div>
+                        <div class="segmented" role="group" aria-label="Ventana de meses">
+                            <a class="segmented-btn"
+                               th:classappend="${mesesVentana == 6} ? ' active' : ''"
+                               th:href="@{/graficas(mes=${mesSeleccionado}, meses=6)}">6 meses</a>
+                            <a class="segmented-btn"
+                               th:classappend="${mesesVentana == 12} ? ' active' : ''"
+                               th:href="@{/graficas(mes=${mesSeleccionado}, meses=12)}">12 meses</a>
+                        </div>
+                    </div>
+                    <div id="wrap-barras" class="chart-canvas-wrap chart-canvas-wide">
+                        <canvas id="chart-ingresos-gastos" aria-label="Gráfica de barras de ingresos contra gastos por mes"></canvas>
+                    </div>
+                </article>
+            </section>
+        </main>
+
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+        <nav th:replace="~{fragments/layout :: bottomnav}"></nav>
+    </div>
+</div>
+
+<!-- Chart.js versión exacta 4.5.1 con Subresource Integrity (SRI) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
+        integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
+        crossorigin="anonymous"
+        defer></script>
+<script th:src="@{/js/graficas.js}" defer></script>
+</body>
+</html>
