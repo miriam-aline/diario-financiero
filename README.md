@@ -4,6 +4,8 @@ Aplicación web personal y local para registrar gastos e ingresos en pesos mexic
 
 Corre únicamente en `127.0.0.1` (localhost), para un solo usuario y con persistencia en un archivo local H2 que permanece en tu equipo.
 
+> **Propósito de pruebas:** Además de ser una aplicación funcional, este proyecto también fue creado para practicar y ejecutar **pruebas unitarias y análisis de cobertura** usando inicialmente `mvn test` (JUnit 5) y **JaCoCo**.
+
 ---
 
 ## Funcionalidades principales
@@ -44,6 +46,79 @@ Para detener la aplicación presiona `Ctrl + C`.
 
 ```zsh
 ./mvnw clean package
+```
+
+---
+
+## Pruebas unitarias y cobertura (`mvn test` y JaCoCo)
+
+Este proyecto también está pensado como entorno de práctica para escribir y validar pruebas unitarias sobre el dominio y los servicios (`src/test/java`), comenzando con **Maven (`mvn test`)** y **JaCoCo** para medir cobertura de código.
+
+### Ejecutar pruebas con Maven
+
+Con Maven instalado globalmente:
+
+```bash
+mvn test
+```
+
+O usando el **Maven Wrapper** incluido en el repositorio:
+
+- Linux / macOS:
+  ```bash
+  ./mvnw test
+  ```
+- Windows (PowerShell):
+  ```powershell
+  .\mvnw.cmd test
+  ```
+
+Para ejecutar una sola clase de prueba (por ejemplo `DineroTest`):
+
+```bash
+mvn test -Dtest=DineroTest
+```
+
+### Cobertura inicial con JaCoCo
+
+El flujo inicial contempla usar **JaCoCo** junto con `mvn test` para generar reportes de cobertura de instrucciones y ramas en `target/site/jacoco/index.html`.
+
+> **Nota:** Actualmente `pom.xml` incluye `junit-jupiter` (`5.11.4`), pero aún no tiene configurado `jacoco-maven-plugin`.
+
+Para habilitar JaCoCo en `pom.xml` dentro de `<build><plugins>`, agrega:
+
+```xml
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.8.12</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>prepare-agent</goal>
+            </goals>
+        </execution>
+        <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+                <goal>report</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
+```
+
+Una vez configurado en `pom.xml`, ejecuta:
+
+```bash
+mvn test
+```
+
+Y abre el reporte HTML generado en:
+
+```text
+target/site/jacoco/index.html
 ```
 
 ---
